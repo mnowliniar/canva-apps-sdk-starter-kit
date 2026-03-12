@@ -4,8 +4,11 @@ import { upload } from "@canva/asset";
 import { addElementAtPoint, createRichtextRange } from "@canva/design";
 import { requestOpenExternalUrl } from "@canva/platform";
 
+/* eslint-disable react/forbid-elements */
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable no-console */
+
 const API = "https://data.indianarealtors.com/api/canva";
-const PNG = `${API}/chart_png`;
 const TEXT = `${API}/text_data`;
 const CONNECT_URL = "https://data.indianarealtors.com/canva/connect";
 const EXCHANGE_URL = "https://data.indianarealtors.com/api/canva/auth/exchange";
@@ -81,7 +84,6 @@ async function generateAndInsertCaption(params: {
       height: 180,
     } as any);
   } catch (e) {
-    // eslint-disable-next-line no-console
     console.error(e);
   }
 }
@@ -377,6 +379,29 @@ export function App() {
     },
   ] as const;
 
+  const PREVIEW_LABELS: Record<string, string> = {
+  kpi: intl.formatMessage({
+    defaultMessage: "kpi",
+    description: "Fallback preview label for the KPI widget preview",
+  }),
+  strip: intl.formatMessage({
+    defaultMessage: "strip",
+    description: "Fallback preview label for the strip widget preview",
+  }),
+  chart: intl.formatMessage({
+    defaultMessage: "chart",
+    description: "Fallback preview label for the chart widget preview",
+  }),
+  text: intl.formatMessage({
+    defaultMessage: "text",
+    description: "Fallback preview label for the text widget preview",
+  }),
+  range: intl.formatMessage({
+    defaultMessage: "range",
+    description: "Fallback preview label for the range widget preview",
+  }),
+};
+
   // ---- Widget preview SVGs (inline; swap paths anytime) ----
   const PreviewChart = () => (
     <svg width="56" height="36" viewBox="0 0 56 36" xmlns="http://www.w3.org/2000/svg">
@@ -499,11 +524,11 @@ export function App() {
   // options
   const [widget, setWidget] = useState<"kpi"|"strip"|"chart"|"dot_range_h"|"text">("kpi");
   const presetSet = PRESET_MAP[widget] ?? CHART_PRESETS;
-  const [presetId, setPresetId] = useState(presetSet[0].id);
+  const [presetId, setPresetId] = useState(presetSet[0]!.id);
   const activePreset = presetSet.find(p => p.id === presetId) ?? presetSet[0];
   useEffect(() => {
     if (!presetSet.some((p) => p.id === presetId)) {
-      setPresetId(presetSet[0].id);
+      setPresetId(presetSet[0]!.id);
     }
   }, [widget]);
   const [proptype] = useState<"all" | "dsf" | "tco">("all");
@@ -559,7 +584,7 @@ export function App() {
   useEffect(() => {
     if (timespan || timespans.length === 0) return;
     const monthly = timespans.find((t) => String(t.id) === "month");
-    setTimespan(monthly ?? timespans[0]);
+    setTimespan(monthly ?? timespans[0]!);
   }, [timespans, timespan]);
 
   // geos for type
@@ -778,14 +803,14 @@ export function App() {
 
         // Fetch text payloads for each selected metric
         const payloads: { title: string; subtitle: string; bullets: string[] }[] = [];
-        for (let i = 0; i < selectedVizzes.length; i++) {
-          const v = selectedVizzes[i];
+        for (const v of selectedVizzes) {
           const u = new URL(TEXT);
           u.searchParams.set("viz_id", String(v.id));
           u.searchParams.set("geo_id", String(geo.id));
           u.searchParams.set("proptype", "all");
 
           // progress bump per metric
+          const i = selectedVizzes.indexOf(v);
           bump(12 + Math.round((i / Math.max(1, selectedVizzes.length)) * 40));
           const td = await j<{ title: string; subtitle: string; bullets: string[] }>(u.toString(), accessToken);
           if (td) payloads.push(td);
@@ -799,10 +824,9 @@ export function App() {
         // Sizes tuned for readability; not tied to preset height.
         const headerHeight = 12;
         const nuggetHeight = 12;
-        const width = activePreset.w;
+        const width = activePreset!.w;
 
-        for (let i = 0; i < payloads.length; i++) {
-          const td = payloads[i];
+        for (const td of payloads) {
 
           // Header (title + subtitle) as its own box
           const headerRange = createRichtextRange();
@@ -810,7 +834,13 @@ export function App() {
             headerRange.appendText(td.title, { fontWeight: "bold" } as any);
           }
           if (td?.subtitle) {
-            headerRange.appendText(" – ", { fontWeight: "normal" } as any);
+            headerRange.appendText(
+              intl.formatMessage({
+                defaultMessage: " – ",
+                description: "Separator inserted between the title and subtitle in generated text summary headers",
+              }),
+              { fontWeight: "normal" } as any,
+            );
             headerRange.appendText(td.subtitle, { fontWeight: "normal" } as any);
           }
 
@@ -861,11 +891,11 @@ export function App() {
         const v = selectedVizzes[i];
 
         const meta = new URL(`${API}/chart_data`);
-        meta.searchParams.set("viz_id", String(v.id));
+        meta.searchParams.set("viz_id", String(v!.id));
         meta.searchParams.set("geo_id", String(geo.id));
         meta.searchParams.set("proptype", "all");
-        meta.searchParams.set("w", String(activePreset.w));
-        meta.searchParams.set("h", String(adjustedHeight(activePreset.h)));
+        meta.searchParams.set("w", String(activePreset!.w));
+        meta.searchParams.set("h", String(adjustedHeight(activePreset!.h)));
         meta.searchParams.set("bg", bg);
         meta.searchParams.set("fontsize", fontSize);
         if (border) meta.searchParams.set("border", "1");
@@ -905,8 +935,8 @@ export function App() {
           // simple stacking offset so items don't land exactly on top of each other
           top: i * 20,
           left: i * 20,
-          width: activePreset.w,
-          height: adjustedHeight(activePreset.h),
+          width: activePreset!.w,
+          height: adjustedHeight(activePreset!.h),
         } as any);
       }
       setLastInsertCount(selectedVizzes.length);
@@ -1389,6 +1419,8 @@ export function App() {
                   defaultMessage="Selected market:"
                   description="Label shown before the currently selected market name"
                 />
+
+              {/* eslint-disable-next-line formatjs/no-literal-string-in-jsx */}
               </strong>{" "}
               {geo.name || geo.label}
             </div>
@@ -1515,8 +1547,12 @@ export function App() {
                       defaultMessage: "Remove",
                       description: "Tooltip text for the button that removes a selected metric chip",
                     })}
+
                   >
-                    ×
+                      {intl.formatMessage({
+                        defaultMessage: "×",
+                        description: "Icon glyph used in the metric chip remove button",
+                      })}
                   </button>
                 </div>
               ))}
@@ -1718,7 +1754,7 @@ export function App() {
                 <div style={{ fontWeight: 900, fontSize: 12 }}>
                   {intl.formatMessage(
                     {
-                      defaultMessage: "✅ Inserted {count} {itemLabel}",
+                      defaultMessage: "Inserted {count} {itemLabel}",
                       description: "Confirmation message shown after charts are inserted into Canva",
                     },
                     {
@@ -1813,8 +1849,8 @@ export function App() {
                   // Use the first selected metric as the caption source.
                   generateAndInsertCaption({
                     geo_id: geo.id,
-                    viz_id: selectedVizzes[0].id,
-                    proptype: proptype,
+                    viz_id: selectedVizzes[0]!.id,
+                    proptype,
                   });
                 }}
                 style={{
@@ -1911,10 +1947,7 @@ export function App() {
                           <svg width="56" height="36" viewBox="0 0 56 36" xmlns="http://www.w3.org/2000/svg">
                             <rect x="1" y="1" width="54" height="34" rx="6" fill="#f7f7f7" stroke="#d9d9d9" />
                             <text x="28" y="21" textAnchor="middle" fontSize="9" fill="#9a9a9a" fontFamily="Inter, system-ui, sans-serif">
-                              {intl.formatMessage({
-                                defaultMessage: w.preview,
-                                description: "Fallback widget preview label shown inside the preview SVG when no custom preview graphic exists",
-                              })}
+                            {PREVIEW_LABELS[w.preview] ?? w.preview}
                             </text>
                           </svg>
                         )}
