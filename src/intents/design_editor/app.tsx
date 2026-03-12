@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef } from "react";
+import { FormattedMessage, useIntl } from "react-intl";
 import { upload } from "@canva/asset";
 import { addElementAtPoint, createRichtextRange } from "@canva/design";
 import { requestOpenExternalUrl } from "@canva/platform";
@@ -135,14 +136,24 @@ function makeId() {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 9)}`;
 }
 
-const steps = [
-  "Pick your market",
-  "Pick metrics",
-  "Options & insert",
-] as const;
 type Step = 0 | 1 | 2;
 
 export function App() {
+  const intl = useIntl();
+  const steps = [
+    intl.formatMessage({
+      defaultMessage: "Pick your market",
+      description: "Step label for the first step in the app flow",
+    }),
+    intl.formatMessage({
+      defaultMessage: "Pick metrics",
+      description: "Step label for the second step in the app flow",
+    }),
+    intl.formatMessage({
+      defaultMessage: "Options & insert",
+      description: "Step label for the third step in the app flow",
+    }),
+  ] as const;
   // --- Auth gate ---
   const [accessToken, setAccessToken] = useState<string>(loadToken());
   const [loginCode, setLoginCode] = useState<string>("");
@@ -159,13 +170,26 @@ export function App() {
     setAuthError("");
     try {
       const code = loginCode.trim();
-      if (!code) throw new Error("Paste the code from the login page.");
+      if (!code) {
+        throw new Error(
+          intl.formatMessage({
+            defaultMessage: "Paste the code from the login page.",
+            description: "Error shown when the user tries to verify without pasting the login code",
+          }),
+        );
+      }
       const resp = await postJson<{ ok: boolean; access_token?: string; error?: string }>(
         EXCHANGE_URL,
         { code }
       );
       if (!resp.ok || !resp.access_token) {
-        throw new Error(resp.error || "Login failed");
+        throw new Error(
+          resp.error ||
+            intl.formatMessage({
+              defaultMessage: "Login failed",
+              description: "Fallback error shown when login verification fails and the server provides no custom error message",
+            }),
+        );
       }
       saveToken(resp.access_token);
       setAccessToken(resp.access_token);
@@ -184,61 +208,171 @@ export function App() {
     setLoginCode("");
   }
   const CHART_PRESETS = [
-    { id: "chart-square", label: "Square", w: 600, h: 600 },
-    { id: "chart-wide",   label: "Wide",   w: 600, h: 400 },
+    {
+      id: "chart-square",
+      label: intl.formatMessage({
+        defaultMessage: "Square",
+        description: "Preset size label for a square chart widget",
+      }),
+      w: 600,
+      h: 600,
+    },
+    {
+      id: "chart-wide",
+      label: intl.formatMessage({
+        defaultMessage: "Wide",
+        description: "Preset size label for a wide chart widget",
+      }),
+      w: 600,
+      h: 400,
+    },
   ];
 
   const KPI_PRESETS = [
-    { id: "kpi-tall",   label: "Tall Card",  w: 200, h: 250 },
-    { id: "kpi-wide",     label: "Wide Card",     w: 550, h: 110 },
+    {
+      id: "kpi-tall",
+      label: intl.formatMessage({
+        defaultMessage: "Tall Card",
+        description: "Preset size label for a tall KPI card widget",
+      }),
+      w: 200,
+      h: 250,
+    },
+    {
+      id: "kpi-wide",
+      label: intl.formatMessage({
+        defaultMessage: "Wide Card",
+        description: "Preset size label for a wide KPI card widget",
+      }),
+      w: 550,
+      h: 110,
+    },
   ];
 
   const STRIP_PRESETS = [
-    { id: "strip-reg",   label: "Regular Card",  w: 650, h: 300 },
-    { id: "strip-wide",     label: "Wide Card",     w: 850, h: 300 },
+    {
+      id: "strip-reg",
+      label: intl.formatMessage({
+        defaultMessage: "Regular Card",
+        description: "Preset size label for a regular three-stat strip card widget",
+      }),
+      w: 650,
+      h: 300,
+    },
+    {
+      id: "strip-wide",
+      label: intl.formatMessage({
+        defaultMessage: "Wide Card",
+        description: "Preset size label for a wide three-stat strip card widget",
+      }),
+      w: 850,
+      h: 300,
+    },
   ];
 
   const DOT_PRESETS = [
-    { id: "range-square", label: "Regular", w: 325, h: 200 },
+    {
+      id: "range-square",
+      label: intl.formatMessage({
+        defaultMessage: "Regular",
+        description: "Preset size label for a regular range plot widget",
+      }),
+      w: 325,
+      h: 200,
+    },
   ];
 
   const TEXT_PRESETS = [
-    { id: "text-wide", label: "Text Box", w: 550, h: 200 },
+    {
+      id: "text-wide",
+      label: intl.formatMessage({
+        defaultMessage: "Text Box",
+        description: "Preset size label for a text summary widget",
+      }),
+      w: 550,
+      h: 200,
+    },
   ];
 
   const SMALL_PRESETS = [
-    { id: "little-chart-square", label: "Square", w: 600, h: 600 },
-    { id: "little-chart-wide",   label: "Wide",   w: 600, h: 400 },
+    {
+      id: "little-chart-square",
+      label: intl.formatMessage({
+        defaultMessage: "Square",
+        description: "Preset size label for a square compact chart widget",
+      }),
+      w: 600,
+      h: 600,
+    },
+    {
+      id: "little-chart-wide",
+      label: intl.formatMessage({
+        defaultMessage: "Wide",
+        description: "Preset size label for a wide compact chart widget",
+      }),
+      w: 600,
+      h: 400,
+    },
   ];
   const WIDGETS = [
     {
       id: "kpi",
-      label: "Single stat card",
-      desc: "One big number with a sparkline.",
+      label: intl.formatMessage({
+        defaultMessage: "Single stat card",
+        description: "Widget option label for the single KPI stat card",
+      }),
+      desc: intl.formatMessage({
+        defaultMessage: "One big number with a sparkline.",
+        description: "Widget option description for the single KPI stat card",
+      }),
       preview: "kpi",
     },
     {
       id: "strip",
-      label: "Three stat strip",
-      desc: "Three quick stats side-by-side.",
+      label: intl.formatMessage({
+        defaultMessage: "Three stat strip",
+        description: "Widget option label for the three-stat strip card",
+      }),
+      desc: intl.formatMessage({
+        defaultMessage: "Three quick stats side-by-side.",
+        description: "Widget option description for the three-stat strip card",
+      }),
       preview: "strip",
     },
     {
       id: "chart",
-      label: "Full chart",
-      desc: "Change over time or by category.",
+      label: intl.formatMessage({
+        defaultMessage: "Full chart",
+        description: "Widget option label for the full chart widget",
+      }),
+      desc: intl.formatMessage({
+        defaultMessage: "Change over time or by category.",
+        description: "Widget option description for the full chart widget",
+      }),
       preview: "chart",
     },
     {
       id: "text",
-      label: "Text summary",
-      desc: "Copy-ready takeaways (2–3 facts).",
+      label: intl.formatMessage({
+        defaultMessage: "Text summary",
+        description: "Widget option label for the text summary widget",
+      }),
+      desc: intl.formatMessage({
+        defaultMessage: "Copy-ready takeaways (2–3 facts).",
+        description: "Widget option description for the text summary widget",
+      }),
       preview: "text",
     },
     {
       id: "dot_range_h",
-      label: "Range plot",
-      desc: "Compares the latest value to an expected range.",
+      label: intl.formatMessage({
+        defaultMessage: "Range plot",
+        description: "Widget option label for the range plot widget",
+      }),
+      desc: intl.formatMessage({
+        defaultMessage: "Compares the latest value to an expected range.",
+        description: "Widget option description for the range plot widget",
+      }),
       preview: "range",
     },
   ] as const;
@@ -503,7 +637,12 @@ export function App() {
 
     return {
       id: makeId(),
-      name: name.trim() || "Untitled",
+      name:
+        name.trim() ||
+        intl.formatMessage({
+          defaultMessage: "Untitled",
+          description: "Fallback name used when the user saves a set without entering a custom name",
+        }),
       geoType,
       geoId: String(geo.id),
       geoLabel: (geo.name || geo.label) as any,
@@ -756,7 +895,13 @@ export function App() {
         await addElementAtPoint({
           type: "image",
           ref: asset.ref,
-          altText: { text: "IAR chart", decorative: false },
+          altText: {
+            text: intl.formatMessage({
+              defaultMessage: "IAR chart",
+              description: "Alt text applied to inserted chart images in Canva",
+            }),
+            decorative: false,
+          },
           // simple stacking offset so items don't land exactly on top of each other
           top: i * 20,
           left: i * 20,
@@ -778,18 +923,40 @@ export function App() {
     }
   }
   const isLastStep = step === 2;
-	const buttonDisabled = isLastStep
-	  ? (!canInsert || isInserting)   // on step 2, need a valid selection to Insert
-	  : (!canContinue || isInserting); // on steps 0–1, only need canContinue
-	const buttonLabel = step < 2
-	  ? "Continue"
-	  : (isInserting ? `Inserting… ${Math.round(progress)}%` : "Insert");
+  const buttonDisabled = isLastStep
+    ? (!canInsert || isInserting)
+    : (!canContinue || isInserting);
+  const buttonLabel = step < 2
+    ? intl.formatMessage({
+        defaultMessage: "Continue",
+        description: "Primary button label used to advance to the next step",
+      })
+    : (isInserting
+        ? intl.formatMessage(
+            {
+              defaultMessage: "Inserting… {progress}%",
+              description: "Primary button label shown while charts are being inserted into Canva",
+            },
+            { progress: Math.round(progress) },
+          )
+        : intl.formatMessage({
+            defaultMessage: "Insert",
+            description: "Primary button label used to insert the selected charts into Canva",
+          }));
   if (!accessToken) {
     return (
       <div style={shell}>
-        <div style={{ fontWeight: 900, fontSize: 14, marginBottom: 10 }}>Connect your IAR account</div>
+        <div style={{ fontWeight: 900, fontSize: 14, marginBottom: 10 }}>
+          <FormattedMessage
+            defaultMessage="Connect your IAR account"
+            description="Heading shown on the login gate before the user connects their IAR account"
+          />
+        </div>
         <div style={{ fontSize: 12, color: "#555", marginBottom: 10 }}>
-          You need to connect your IAR account before you can browse markets and insert charts.
+          <FormattedMessage
+            defaultMessage="You need to connect your IAR account before you can browse markets and insert charts."
+            description="Explanation shown on the login gate describing why account connection is required"
+          />
         </div>
 
         <button
@@ -806,14 +973,25 @@ export function App() {
             marginBottom: 10,
           }}
         >
-          Connect your IAR account
+          <FormattedMessage
+            defaultMessage="Connect your IAR account"
+            description="Button label that opens the external IAR account connection page"
+          />
         </button>
 
-        <div style={{ fontSize: 12, color: "#333", marginBottom: 6 }}>Paste code</div>
+        <div style={{ fontSize: 12, color: "#333", marginBottom: 6 }}>
+          <FormattedMessage
+            defaultMessage="Paste code"
+            description="Label above the input where the user pastes the login verification code"
+          />
+        </div>
         <input
           value={loginCode}
           onChange={(e) => setLoginCode(e.target.value)}
-          placeholder="Paste the code from the connect page"
+          placeholder={intl.formatMessage({
+            defaultMessage: "Paste the code from the connect page",
+            description: "Placeholder text in the login code input field",
+          })}
           style={{ ...search, marginBottom: 10 }}
         />
 
@@ -834,7 +1012,17 @@ export function App() {
             marginBottom: 10,
           }}
         >
-          {authBusy ? "Verifying…" : "Verify and continue"}
+          {authBusy ? (
+            <FormattedMessage
+              defaultMessage="Verifying…"
+              description="Button text shown while the pasted login code is being verified"
+            />
+          ) : (
+            <FormattedMessage
+              defaultMessage="Verify and continue"
+              description="Button label that verifies the pasted login code and continues into the app"
+            />
+          )}
         </button>
 
         {authError && (
@@ -842,23 +1030,43 @@ export function App() {
         )}
 
         <div style={{ fontSize: 11, color: "#777", marginTop: 12, lineHeight: 1.3 }}>
-          Tip: Keep the login page open, click “Copy code”, then paste it here.
+          <FormattedMessage
+            defaultMessage="Tip: Keep the login page open, click “Copy code”, then paste it here."
+            description="Helper tip shown below the login code input explaining how to copy the verification code"
+          />
         </div>
       </div>
     );
   }
   return (
     <div style={shell}>
-      <Header step={step} />
+      <Header step={step} steps={steps} />
       <div style={{ height: 8 }} />
 
       <div style={summaryBar}>
         <div style={summaryRow}>
-          <div style={summaryLabel}>Market</div>
-          <div style={summaryValue}>{geo ? (geo.name || geo.label) : "—"}</div>
+          <div style={summaryLabel}>
+            <FormattedMessage
+              defaultMessage="Market"
+              description="Label in the summary bar for the selected market"
+            />
+          </div>
+          <div style={summaryValue}>
+            {geo
+              ? (geo.name || geo.label)
+              : intl.formatMessage({
+                  defaultMessage: "—",
+                  description: "Placeholder shown in the summary bar when no market is selected",
+                })}
+          </div>
         </div>
         <div style={summaryRow}>
-          <div style={summaryLabel}>Metrics</div>
+          <div style={summaryLabel}>
+            <FormattedMessage
+              defaultMessage="Metrics"
+              description="Label in the summary bar for the selected metrics bundle"
+            />
+          </div>
           <div style={summaryValue}>
             {selectedVizzes.length
               ? (() => {
@@ -870,7 +1078,10 @@ export function App() {
                   const extra = selectedVizzes.length - 1;
                   return first + (extra > 0 ? ` +${extra}` : "");
                 })()
-              : "—"}
+              : intl.formatMessage({
+                  defaultMessage: "—",
+                  description: "Placeholder shown in the summary bar when no metrics are selected",
+                })}
           </div>
         </div>
       </div>
@@ -894,12 +1105,20 @@ export function App() {
               cursor: "pointer",
             }}
           >
-            Disconnect
+            <FormattedMessage
+              defaultMessage="Disconnect"
+              description="Button label that disconnects the currently connected IAR account"
+            />
           </button>
         </div>
       )}
       {step === 0 && (
-        <Section title="Pick your market">
+        <Section
+          title={intl.formatMessage({
+            defaultMessage: "Pick your market",
+            description: "Section title for the first step where the user selects a market",
+          })}
+        >
           {/* Saved sets (optional shortcut) */}
           <details style={{ marginBottom: 14 }}>
             <summary
@@ -917,8 +1136,18 @@ export function App() {
                 fontSize: 12,
               }}
             >
-              <span>Saved sets</span>
-              <span style={{ color: "#888", fontWeight: 700 }}>Optional</span>
+              <span>
+                <FormattedMessage
+                  defaultMessage="Saved sets"
+                  description="Summary label for the collapsible saved sets section in the market selection step"
+                />
+              </span>
+              <span style={{ color: "#888", fontWeight: 700 }}>
+                <FormattedMessage
+                  defaultMessage="Optional"
+                  description="Small badge text indicating the saved sets shortcut is optional"
+                />
+              </span>
             </summary>
 
             <div style={{ marginTop: 10 }}>
@@ -946,7 +1175,12 @@ export function App() {
                   }}
                   disabled={!canLoadAnyTemplate}
                 >
-                  <option value="">Load a saved set…</option>
+                  <option value="">
+                    {intl.formatMessage({
+                      defaultMessage: "Load a saved set…",
+                      description: "Placeholder option in the saved sets dropdown before a saved set is selected",
+                    })}
+                  </option>
                   {allTemplatesSorted.map((t) => (
                     <option key={t.id} value={t.id}>
                       {t.name}
@@ -973,7 +1207,10 @@ export function App() {
                     whiteSpace: "nowrap",
                   }}
                 >
-                  Load
+                  <FormattedMessage
+                    defaultMessage="Load"
+                    description="Button label to load the currently selected saved set"
+                  />
                 </button>
               </div>
 
@@ -986,7 +1223,10 @@ export function App() {
                 }}
               >
                 <div style={{ fontSize: 11, color: "#888" }}>
-                  Saved sets are stored on this device.
+                  <FormattedMessage
+                    defaultMessage="Saved sets are stored on this device."
+                    description="Helper text explaining that saved sets are stored locally on the current device"
+                  />
                 </div>
 
                 <button
@@ -1007,7 +1247,10 @@ export function App() {
                   }}
                   aria-expanded={showManageSets}
                 >
-                  Manage saved sets
+                  <FormattedMessage
+                    defaultMessage="Manage saved sets"
+                    description="Button label that opens the panel for managing saved sets"
+                  />
                 </button>
               </div>
 
@@ -1024,19 +1267,28 @@ export function App() {
                   }}
                 >
                   <div style={{ fontSize: 12, fontWeight: 800, color: "#333" }}>
-                    Manage saved sets
+                    <FormattedMessage
+                      defaultMessage="Manage saved sets"
+                      description="Heading for the panel where the user can manage saved sets"
+                    />
                   </div>
 
                   <div style={{ fontSize: 12, color: "#666" }}>
                     {activeTemplate ? (
                       <>
-                        Selected:{" "}
+                        <FormattedMessage
+                          defaultMessage="Selected:"
+                          description="Label shown before the name of the currently selected saved set in the manage panel"
+                        />{" "}
                         <span style={{ fontWeight: 800, color: "#111" }}>
                           {activeTemplate.name}
                         </span>
                       </>
                     ) : (
-                      <>Select a saved set above to manage it.</>
+                      <FormattedMessage
+                        defaultMessage="Select a saved set above to manage it."
+                        description="Instruction shown in the manage saved sets panel when no saved set is selected"
+                      />
                     )}
                   </div>
 
@@ -1062,7 +1314,17 @@ export function App() {
                         opacity: !activeTemplate ? 0.5 : 1,
                       }}
                     >
-                      {confirmDeleteArmed ? "Click again to delete" : "Delete saved set"}
+                      {confirmDeleteArmed ? (
+                        <FormattedMessage
+                          defaultMessage="Click again to delete"
+                          description="Delete confirmation button text shown after the first click on delete saved set"
+                        />
+                      ) : (
+                        <FormattedMessage
+                          defaultMessage="Delete saved set"
+                          description="Button label to delete the currently selected saved set"
+                        />
+                      )}
                     </button>
                   </div>
 
@@ -1082,14 +1344,22 @@ export function App() {
                         cursor: "pointer",
                       }}
                     >
-                      Done
+                      <FormattedMessage
+                        defaultMessage="Done"
+                        description="Button label to close the manage saved sets panel"
+                      />
                     </button>
                   </div>
                 </div>
               )}
             </div>
           </details>
-          <div style={{ marginTop:4, marginBottom: 8 }}>Type</div>
+          <div style={{ marginTop:4, marginBottom: 8 }}>
+            <FormattedMessage
+              defaultMessage="Type"
+              description="Label above the chips used to choose the market geography type"
+            />
+          </div>
           <div style={{ ...chips, marginBottom: 10 }}>
             {visibleGeoTypes.map((t) => (
               <Chip
@@ -1102,7 +1372,10 @@ export function App() {
           </div>
 
           <input
-            placeholder="Search markets"
+            placeholder={intl.formatMessage({
+              defaultMessage: "Search markets",
+              description: "Placeholder text in the market search input",
+            })}
             value={q}
             onChange={(e) => setQ(e.target.value)}
             style={search}
@@ -1111,12 +1384,25 @@ export function App() {
 
           {geo && (
             <div style={{ margin: "6px 0 10px", fontSize: 12, color: "#444" }}>
-              <strong>Selected market:</strong> {geo.name || geo.label}
+              <strong>
+                <FormattedMessage
+                  defaultMessage="Selected market:"
+                  description="Label shown before the currently selected market name"
+                />
+              </strong>{" "}
+              {geo.name || geo.label}
             </div>
           )}
 
           <List>
-            {!geoType && <Empty>Choose a type to load markets</Empty>}
+            {!geoType && (
+              <Empty>
+                <FormattedMessage
+                  defaultMessage="Choose a type to load markets"
+                  description="Empty-state message shown before the user selects a market type"
+                />
+              </Empty>
+            )}
             {!!geoType &&
               geos.map((g) => (
                 <Row
@@ -1129,15 +1415,32 @@ export function App() {
                   }}
                 />
               ))}
-            {!!geoType && geos.length === 0 && <Empty>Start typing to filter…</Empty>}
+            {!!geoType && geos.length === 0 && (
+              <Empty>
+                <FormattedMessage
+                  defaultMessage="Start typing to filter…"
+                  description="Empty-state message shown when the user should type to filter the market list"
+                />
+              </Empty>
+            )}
           </List>
         </Section>
       )}
 
       {/* Step 1: Timespan + Viz (combined) */}
       {step === 1 && (
-        <Section title="Pick a timeframe and metrics">
-          <div style={{ marginTop:4, marginBottom: 8 }}>Timeframe</div>
+        <Section
+          title={intl.formatMessage({
+            defaultMessage: "Pick a timeframe and metrics",
+            description: "Section title for the second step where the user chooses a timeframe and metrics",
+          })}
+        >
+          <div style={{ marginTop:4, marginBottom: 8 }}>
+            <FormattedMessage
+              defaultMessage="Timeframe"
+              description="Label above the dropdown used to select the metric timeframe"
+            />
+          </div>
           <select
             value={timespan ? String(timespan.id) : ""}
             onChange={(e) => {
@@ -1155,9 +1458,20 @@ export function App() {
           </select>
 
           <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginTop:4, marginBottom: 8 }}>
-            <div>Metrics</div>
+            <div>
+              <FormattedMessage
+                defaultMessage="Metrics"
+                description="Label above the list of metrics in step two"
+              />
+            </div>
             <div style={{ color: selectedVizzes.length >= BUNDLE_MAX ? "#6a5cff" : "#666" }}>
-              Bundle ({selectedVizzes.length}/{BUNDLE_MAX})
+              {intl.formatMessage(
+                {
+                  defaultMessage: "Bundle ({count}/{max})",
+                  description: "Label showing how many metrics are currently selected out of the maximum allowed",
+                },
+                { count: selectedVizzes.length, max: BUNDLE_MAX },
+              )}
             </div>
           </div>
 
@@ -1193,8 +1507,14 @@ export function App() {
                       fontWeight: 900,
                       lineHeight: 1,
                     }}
-                    aria-label="Remove metric"
-                    title="Remove"
+                    aria-label={intl.formatMessage({
+                      defaultMessage: "Remove metric",
+                      description: "Accessible label for the button that removes a selected metric chip",
+                    })}
+                    title={intl.formatMessage({
+                      defaultMessage: "Remove",
+                      description: "Tooltip text for the button that removes a selected metric chip",
+                    })}
                   >
                     ×
                   </button>
@@ -1213,13 +1533,24 @@ export function App() {
                   color: "#666",
                 }}
               >
-                Clear
+                <FormattedMessage
+                  defaultMessage="Clear"
+                  description="Button label that clears all currently selected metrics from the bundle"
+                />
               </button>
             </div>
           )}
 
           <input
-            placeholder={selectedVizzes.length >= BUNDLE_MAX ? "Bundle full (3)" : "Search metrics"}
+            placeholder={selectedVizzes.length >= BUNDLE_MAX
+              ? intl.formatMessage({
+                  defaultMessage: "Bundle full (3)",
+                  description: "Placeholder shown in the metric search input when the user has already selected the maximum number of metrics",
+                })
+              : intl.formatMessage({
+                  defaultMessage: "Search metrics",
+                  description: "Placeholder text in the metric search input",
+                })}
             value={vizQ}
             onChange={(e) => setVizQ(e.target.value)}
             style={search}
@@ -1245,9 +1576,36 @@ export function App() {
                 return at.localeCompare(bt);
               });
 
-              if (!timespan) return <Empty>Choose a timeframe to load metrics</Empty>;
-              if (vizzes.length === 0) return <Empty>No metrics found for this timeframe</Empty>;
-              if (filtered.length === 0) return <Empty>No matches</Empty>;
+              if (!timespan) {
+                return (
+                  <Empty>
+                    <FormattedMessage
+                      defaultMessage="Choose a timeframe to load metrics"
+                      description="Empty-state message shown before the user selects a timeframe"
+                    />
+                  </Empty>
+                );
+              }
+              if (vizzes.length === 0) {
+                return (
+                  <Empty>
+                    <FormattedMessage
+                      defaultMessage="No metrics found for this timeframe"
+                      description="Empty-state message shown when no metrics are available for the selected timeframe"
+                    />
+                  </Empty>
+                );
+              }
+              if (filtered.length === 0) {
+                return (
+                  <Empty>
+                    <FormattedMessage
+                      defaultMessage="No matches"
+                      description="Empty-state message shown when no metrics match the search term"
+                    />
+                  </Empty>
+                );
+              }
 
               return filtered.map((v) => {
                 const selected = isSelectedViz(v.id);
@@ -1288,7 +1646,10 @@ export function App() {
                                 whiteSpace: "nowrap",
                               }}
                             >
-                              Recommended
+                              <FormattedMessage
+                                defaultMessage="Recommended"
+                                description="Badge shown next to metrics that are recommended by default"
+                              />
                             </div>
                           )}
                         </div>
@@ -1314,7 +1675,17 @@ export function App() {
                         whiteSpace: "nowrap",
                       }}
                     >
-                      {selected ? "Remove" : "Add"}
+                      {selected ? (
+                        <FormattedMessage
+                          defaultMessage="Remove"
+                          description="Button label used to remove a metric from the selected bundle"
+                        />
+                      ) : (
+                        <FormattedMessage
+                          defaultMessage="Add"
+                          description="Button label used to add a metric to the selected bundle"
+                        />
+                      )}
                     </button>
                   </div>
                 );
@@ -1326,7 +1697,12 @@ export function App() {
 
       {/* Step 2: Options & insert */}
       {step === 2 && (
-        <Section title="Options & insert">
+        <Section
+          title={intl.formatMessage({
+            defaultMessage: "Options & insert",
+            description: "Section title for the third step where the user chooses widget options and inserts charts",
+          })}
+        >
           {/* Post-insert actions (save/export after you insert) */}
           {postInsertMode && (
             <div style={{
@@ -1339,7 +1715,27 @@ export function App() {
               gap: 10,
             }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 10 }}>
-                <div style={{ fontWeight: 900, fontSize: 12 }}>✅ Inserted {lastInsertCount} {lastInsertCount === 1 ? "card" : "cards"}</div>
+                <div style={{ fontWeight: 900, fontSize: 12 }}>
+                  {intl.formatMessage(
+                    {
+                      defaultMessage: "✅ Inserted {count} {itemLabel}",
+                      description: "Confirmation message shown after charts are inserted into Canva",
+                    },
+                    {
+                      count: lastInsertCount,
+                      itemLabel:
+                        lastInsertCount === 1
+                          ? intl.formatMessage({
+                              defaultMessage: "card",
+                              description: "Singular noun used in the post-insert confirmation message",
+                            })
+                          : intl.formatMessage({
+                              defaultMessage: "cards",
+                              description: "Plural noun used in the post-insert confirmation message",
+                            }),
+                    },
+                  )}
+                </div>
                 <button
                   onClick={() => {
                     setPostInsertMode(false);
@@ -1355,17 +1751,26 @@ export function App() {
                     fontSize: 12,
                   }}
                 >
-                  Dismiss
+                  <FormattedMessage
+                    defaultMessage="Dismiss"
+                    description="Button label that closes the post-insert confirmation panel"
+                  />
                 </button>
               </div>
 
               <div style={{ fontSize: 12, color: "#666" }}>
-                Save this bundle so you can load it next time and skip setup.
+                <FormattedMessage
+                  defaultMessage="Save this bundle so you can load it next time and skip setup."
+                  description="Helper text encouraging the user to save the current bundle after insertion"
+                />
               </div>
 
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                 <input
-                  placeholder="Name this saved set"
+                  placeholder={intl.formatMessage({
+                    defaultMessage: "Name this saved set",
+                    description: "Placeholder text in the input used to name a saved set after insertion",
+                  })}
                   value={templateName}
                   onChange={(e) => setTemplateName(e.target.value)}
                   style={{
@@ -1392,7 +1797,10 @@ export function App() {
                     opacity: !geo || !timespan || selectedVizzes.length === 0 ? 0.5 : 1,
                   }}
                 >
-                  Save
+                  <FormattedMessage
+                    defaultMessage="Save"
+                    description="Button label used to save the current bundle as a saved set"
+                  />
                 </button>
               </div>
 
@@ -1421,7 +1829,10 @@ export function App() {
                   color: "#333",
                 }}
               >
-                Generate AI caption
+                <FormattedMessage
+                  defaultMessage="Generate AI caption"
+                  description="Button label used to generate and insert an AI-written caption for the selected metric"
+                />
               </button>
 
               <div style={{ display: "flex", justifyContent: "flex-end" }}>
@@ -1444,7 +1855,10 @@ export function App() {
                     color: "#333",
                   }}
                 >
-                  Start over
+                  <FormattedMessage
+                    defaultMessage="Start over"
+                    description="Button label that returns the user to the beginning of the setup flow after insertion"
+                  />
                 </button>
               </div>
 
@@ -1452,7 +1866,12 @@ export function App() {
           )}
           <div style={{ marginBottom: 12 }}>
             <div>
-              <div style={{ fontWeight: 600, marginBottom: 8 }}>Choose widget</div>
+              <div style={{ fontWeight: 600, marginBottom: 8 }}>
+                <FormattedMessage
+                  defaultMessage="Choose widget"
+                  description="Heading above the widget selection cards in step three"
+                />
+              </div>
               <div style={{ display: "grid", gap: 10 }}>
                 {WIDGETS.map((w) => {
                   const active = widget === w.id;
@@ -1492,7 +1911,10 @@ export function App() {
                           <svg width="56" height="36" viewBox="0 0 56 36" xmlns="http://www.w3.org/2000/svg">
                             <rect x="1" y="1" width="54" height="34" rx="6" fill="#f7f7f7" stroke="#d9d9d9" />
                             <text x="28" y="21" textAnchor="middle" fontSize="9" fill="#9a9a9a" fontFamily="Inter, system-ui, sans-serif">
-                              {w.preview}
+                              {intl.formatMessage({
+                                defaultMessage: w.preview,
+                                description: "Fallback widget preview label shown inside the preview SVG when no custom preview graphic exists",
+                              })}
                             </text>
                           </svg>
                         )}
@@ -1511,7 +1933,12 @@ export function App() {
                 })}
               </div>
             </div>
-            <div style={{ fontWeight: 600, margin: "12px 0 6px" }}>Size</div>
+            <div style={{ fontWeight: 600, margin: "12px 0 6px" }}>
+              <FormattedMessage
+                defaultMessage="Size"
+                description="Heading above the preset size buttons for the selected widget"
+              />
+            </div>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               {presetSet.map(p => (
                 <button key={p.id}
@@ -1526,7 +1953,10 @@ export function App() {
             </div>
             <details style={{ marginTop: 10 }}>
               <summary style={{ fontWeight: 700, cursor: "pointer", userSelect: "none" }}>
-                Options
+                <FormattedMessage
+                  defaultMessage="Options"
+                  description="Summary label for the collapsible widget options panel"
+                />
               </summary>
               <div style={{ marginTop: 10, display: "grid", gap: 8 }}>
                 {(widget === "chart" || widget === "strip") && (
@@ -1536,37 +1966,90 @@ export function App() {
                       checked={showTitle}
                       onChange={(e) => setShowTitle(e.target.checked)}
                     />
-                    <span>Show title block</span>
+                    <span>
+                      <FormattedMessage
+                        defaultMessage="Show title block"
+                        description="Checkbox label that controls whether the chart title block is shown"
+                      />
+                    </span>
                   </label>
                 )}
                 <label style={{ display: "grid", gap: 4 }}>
-                  <span>Brand color (hex)</span>
+                  <span>
+                    <FormattedMessage
+                      defaultMessage="Brand color (hex)"
+                      description="Label for the input where the user can enter a custom hex brand color"
+                    />
+                  </span>
                   <input
-                    placeholder="#006E8E"
+                    placeholder={intl.formatMessage({
+                      defaultMessage: "#006E8E",
+                      description: "Placeholder example shown in the custom brand color hex input",
+                    })}
                     value={color}
                     onChange={(e) => setColor(e.target.value)}
                     style={{ width: "100%", padding: 6, border: "1px solid #ddd", borderRadius: 6, boxSizing:"border-box" }}
                   />
                   {normalizeHex(color) === "" && color.trim() !== "" && (
-                    <span style={{ color: "#b00", fontSize: 12 }}>Enter a valid hex (e.g. #006E8E)</span>
+                    <span style={{ color: "#b00", fontSize: 12 }}>
+                      <FormattedMessage
+                        defaultMessage="Enter a valid hex (e.g. #006E8E)"
+                        description="Validation message shown when the user enters an invalid hex color"
+                      />
+                    </span>
                   )}
                 </label>
                 <label style={{ display: "grid", gap: 4 }}>
-                  <span>Background</span>
+                  <span>
+                    <FormattedMessage
+                      defaultMessage="Background"
+                      description="Label for the dropdown used to choose the widget background color"
+                    />
+                  </span>
                   <select
                     value={bg}
                     onChange={(e) => setBg(e.target.value)}
                     style={{ width: "100%", padding: 6, border: "1px solid #ddd", borderRadius: 6, boxSizing: "border-box" }}
                   >
-                    <option value="white">White</option>
-                    <option value="transparent">Transparent</option>
-                    <option value="#faf8f5">Warm White</option>
-                    <option value="#f3f4f6">Light Gray</option>
-                    <option value="#f0fbfb">Soft IAR Teal</option>
+                    <option value="white">
+                      {intl.formatMessage({
+                        defaultMessage: "White",
+                        description: "Background color option for a white widget background",
+                      })}
+                    </option>
+                    <option value="transparent">
+                      {intl.formatMessage({
+                        defaultMessage: "Transparent",
+                        description: "Background color option for a transparent widget background",
+                      })}
+                    </option>
+                    <option value="#faf8f5">
+                      {intl.formatMessage({
+                        defaultMessage: "Warm White",
+                        description: "Background color option for a warm white widget background",
+                      })}
+                    </option>
+                    <option value="#f3f4f6">
+                      {intl.formatMessage({
+                        defaultMessage: "Light Gray",
+                        description: "Background color option for a light gray widget background",
+                      })}
+                    </option>
+                    <option value="#f0fbfb">
+                      {intl.formatMessage({
+                        defaultMessage: "Soft IAR Teal",
+                        description: "Background color option for a soft IAR teal widget background",
+                      })}
+                    </option>
                   </select>
                 </label>
                 <label style={{ display: "grid", gap: 4 }}>
-                  <span>Font size</span>
+                  <span>
+                    <FormattedMessage
+                      defaultMessage="Font size"
+                      description="Label for the dropdown used to choose the widget font size"
+                    />
+                  </span>
                   <select
                     value={fontSize}
                     onChange={(e) => setFontSize(e.target.value)}
@@ -1578,9 +2061,24 @@ export function App() {
                       boxSizing: "border-box",
                     }}
                   >
-                    <option value="normal">Normal</option>
-                    <option value="large">Large</option>
-                    <option value="compact">Compact</option>
+                    <option value="normal">
+                      {intl.formatMessage({
+                        defaultMessage: "Normal",
+                        description: "Font size option for the normal widget font size",
+                      })}
+                    </option>
+                    <option value="large">
+                      {intl.formatMessage({
+                        defaultMessage: "Large",
+                        description: "Font size option for the large widget font size",
+                      })}
+                    </option>
+                    <option value="compact">
+                      {intl.formatMessage({
+                        defaultMessage: "Compact",
+                        description: "Font size option for the compact widget font size",
+                      })}
+                    </option>
                   </select>
                 </label>
                 <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
@@ -1589,7 +2087,12 @@ export function App() {
                     checked={border}
                     onChange={(e) => setBorder(e.target.checked)}
                   />
-                  <span>Show card border</span>
+                  <span>
+                    <FormattedMessage
+                      defaultMessage="Show card border"
+                      description="Checkbox label that controls whether a border is shown around the widget"
+                    />
+                  </span>
                 </label>
               </div>
             </details>
@@ -1611,7 +2114,12 @@ export function App() {
             width: 320, padding: 16, borderRadius: 12, background: "white",
             boxShadow: "0 8px 24px rgba(0,0,0,0.25)"
           }}>
-            <div style={{ fontWeight: 700, marginBottom: 8 }}>Inserting…</div>
+            <div style={{ fontWeight: 700, marginBottom: 8 }}>
+              <FormattedMessage
+                defaultMessage="Inserting…"
+                description="Heading shown in the loader overlay while charts are being inserted"
+              />
+            </div>
             <div style={{ height: 10, background: "#eee", borderRadius: 6, overflow: "hidden", marginBottom: 8 }}>
               <div style={{
                 height: "100%",
@@ -1621,7 +2129,10 @@ export function App() {
               }} />
             </div>
             <div style={{ fontSize: 12, color: "#666" }}>
-              This can take up to ~30s depending on data & network.
+              <FormattedMessage
+                defaultMessage="This can take up to ~30s depending on data & network."
+                description="Helper text in the loader overlay explaining that insertion may take some time"
+              />
             </div>
           </div>
         </div>
@@ -1631,7 +2142,10 @@ export function App() {
       <div style={{ height: 12 }} />
       <div style={nav}>
         <button onClick={back} disabled={step === 0 || isInserting} style={secondary}>
-          Back
+          <FormattedMessage
+            defaultMessage="Back"
+            description="Secondary navigation button label used to go to the previous step"
+          />
         </button>
         <button
           onClick={step < 2 ? next : insert}
@@ -1669,7 +2183,10 @@ export function App() {
               cursor: "pointer",
             }}
           >
-            New here? Getting started →
+            <FormattedMessage
+              defaultMessage="New here? Getting started →"
+              description="Footer help link inviting first-time users to open the getting started guide"
+            />
           </button>
         </div>
       )}
@@ -1678,7 +2195,7 @@ export function App() {
 }
 
 /* ---------- UI bits ---------- */
-function Header({ step }: { step: Step }) {
+function Header({ step, steps }: { step: Step; steps: readonly string[] }) {
   return (
     <div style={{ display: "grid", gap: 6 }}>
       <div style={{ display: "flex", gap: 4 }}>
@@ -1698,7 +2215,7 @@ function Header({ step }: { step: Step }) {
   );
 }
 
-function Section(props: { title: string; children: React.ReactNode }) {
+function Section(props: { title: React.ReactNode; children: React.ReactNode }) {
   return (
     <div>
       <div style={{ fontSize: 12, color: "#333", marginBottom: 12, marginTop: 12 }}>
@@ -1714,7 +2231,7 @@ function Chip({
   active,
   onClick,
 }: {
-  label: string;
+  label: React.ReactNode;
   active?: boolean;
   onClick: () => void;
 }) {
@@ -1786,7 +2303,10 @@ function Row({
               whiteSpace: "nowrap",
             }}
           >
-            Recommended
+            <FormattedMessage
+              defaultMessage="Recommended"
+              description="Badge shown next to recommended items in reusable row components"
+            />
           </div>
         )}
       </div>
