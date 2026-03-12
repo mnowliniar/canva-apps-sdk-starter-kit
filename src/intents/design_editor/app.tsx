@@ -385,9 +385,6 @@ export function App() {
   const [templateName, setTemplateName] = useState<string>("");
   const [showManageSets, setShowManageSets] = useState<boolean>(false);
   const [confirmDeleteArmed, setConfirmDeleteArmed] = useState<boolean>(false);
-  const [confirmClearArmed, setConfirmClearArmed] = useState<boolean>(false);
-  const [showTemplateIo, setShowTemplateIo] = useState<boolean>(false);
-  const [templateIoText, setTemplateIoText] = useState<string>("");
   const pendingVizIdsRef = useRef<string[] | null>(null);
   const pendingGeoIdRef = useRef<string | null>(null);
 
@@ -493,7 +490,6 @@ export function App() {
 
   // Templates (saved sets)
   const allTemplatesSorted = [...templates].sort((a, b) => (a.savedAt < b.savedAt ? 1 : -1));
-  const marketTemplates = allTemplatesSorted.filter((t) => t.geoType === geoType);
 
   const activeTemplate = allTemplatesSorted.find((t) => t.id === activeTemplateId) || null;
   const canLoadAnyTemplate = allTemplatesSorted.length > 0;
@@ -537,32 +533,12 @@ export function App() {
     setPostInsertMode(false);
   }
 
-  function updateActiveTemplate() {
-    if (!activeTemplate) return;
-    const t = snapshotCurrentTemplate(activeTemplate.name);
-    if (!t) return;
-    // preserve id + name
-    const updated: SavedTemplate = {
-      ...t,
-      id: activeTemplate.id,
-      name: activeTemplate.name,
-      savedAt: new Date().toISOString(),
-    };
-    const next = templates.map((x) => (x.id === activeTemplate.id ? updated : x));
-    setTemplates(next);
-    saveAllTemplates(next);
-    setPostInsertMode(false);
-  }
 
   function armDeleteOnce() {
     setConfirmDeleteArmed(true);
     window.setTimeout(() => setConfirmDeleteArmed(false), 3500);
   }
 
-  function armClearOnce() {
-    setConfirmClearArmed(true);
-    window.setTimeout(() => setConfirmClearArmed(false), 3500);
-  }
   function deleteActiveTemplate() {
     if (!activeTemplate) return;
     const next = templates.filter((x) => x.id !== activeTemplate.id);
@@ -573,13 +549,6 @@ export function App() {
     setLastInsertCount(0);
   }
 
-  function clearMarketTemplates() {
-    if (!geo) return;
-    const next = templates.filter((t) => !(t.geoType === geoType && String(t.geoId) === String(geo.id)));
-    setTemplates(next);
-    saveAllTemplates(next);
-    setActiveTemplateId("");
-  }
 
   function loadTemplate(t: SavedTemplate) {
     // Market: set geoType so geos load, then apply geoId once geos arrive.
@@ -621,16 +590,6 @@ export function App() {
     setVizQ("");
     setStep(0); // stay on market picker; list reloads
   }
-  function chooseGeo(g: Item) {
-    setGeo(g);
-    setTimespan(null);
-    setSelectedVizzes([]);
-    setVizQ("");
-    setActiveTemplateId("");
-    setPostInsertMode(false);
-    setLastInsertCount(0);
-    setStep(1);
-  }
 
   const MAX_STEP: Step = 2;
 
@@ -663,29 +622,6 @@ export function App() {
   }
 
 
-  function buildPngUrl(
-    _presetId: string, // not used directly; kept for API symmetry
-    vizId: string|number,
-    geoId: string|number,
-    proptype: string,
-    showTitleFlag: boolean,
-    colorHex: string
-  ) {
-    const u = new URL(PNG);
-    u.searchParams.set("viz_id", String(vizId));
-    u.searchParams.set("geo_id", String(geoId));
-    u.searchParams.set("proptype", proptype);
-    u.searchParams.set("w", String(activePreset.w));
-    u.searchParams.set("h", String(adjustedHeight(activePreset.h)));
-    u.searchParams.set("bg", bg);
-    u.searchParams.set("fontsize", fontSize);
-    if (border) u.searchParams.set("border", "1");
-    u.searchParams.set("widget", widget);
-    if (showTitleFlag) u.searchParams.set("title", "1");
-    const hex = normalizeHex(colorHex);
-    if (hex) u.searchParams.set("color", hex);
-    return u.toString();
-  }
 
   async function insert() {
     if (!geo || selectedVizzes.length === 0 || isInserting) return;
@@ -1057,7 +993,6 @@ export function App() {
                   onClick={() => {
                     setShowManageSets((s) => !s);
                     setConfirmDeleteArmed(false);
-                    setConfirmClearArmed(false);
                   }}
                   style={{
                     border: "none",
@@ -1136,7 +1071,6 @@ export function App() {
                       onClick={() => {
                         setShowManageSets(false);
                         setConfirmDeleteArmed(false);
-                        setConfirmClearArmed(false);
                       }}
                       style={{
                         border: "none",
@@ -1861,20 +1795,6 @@ function Row({
   );
 }
 
-function Field({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <label style={{ display: "grid", gap: 6, fontSize: 12 }}>
-      <span style={{ color: "#666" }}>{label}</span>
-      {children}
-    </label>
-  );
-}
 
 /* ---------- Styles ---------- */
 const shell: React.CSSProperties = {
@@ -1934,19 +1854,6 @@ const list: React.CSSProperties = {
   borderRadius: 6,
 };
 
-const grid3: React.CSSProperties = {
-  display: "grid",
-  gridTemplateColumns: "1fr 1fr 1fr",
-  gap: 8,
-  marginBottom: 12,
-};
-
-const input: React.CSSProperties = {
-  width: "100%",
-  padding: 8,
-  border: "1px solid #ddd",
-  borderRadius: 6,
-};
 
 const nav: React.CSSProperties = {
   display: "flex",
