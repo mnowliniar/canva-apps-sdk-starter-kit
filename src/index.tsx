@@ -4,6 +4,12 @@ import App from "./app";
 import "@canva/app-ui-kit/styles.css";
 import { AppI18nProvider } from "@canva/app-i18n-kit";
 
+import { prepareDesignEditor } from "@canva/intents/design";
+
+import designEditor from "./intents/design_editor";
+
+prepareDesignEditor(designEditor);
+
 
 const root = createRoot(document.getElementById("root") as Element);
 function render() {
