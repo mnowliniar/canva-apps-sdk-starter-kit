@@ -3,6 +3,7 @@ import { FormattedMessage, useIntl } from "react-intl";
 import { upload } from "@canva/asset";
 import { addElementAtPoint, createRichtextRange } from "@canva/design";
 import { requestOpenExternalUrl } from "@canva/platform";
+import { auth } from "@canva/user";
 
 /* eslint-disable react/forbid-elements */
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -10,8 +11,6 @@ import { requestOpenExternalUrl } from "@canva/platform";
 
 const API = "https://data.indianarealtors.com/api/canva";
 const TEXT = `${API}/text_data`;
-const CONNECT_URL = "https://data.indianarealtors.com/canva/connect";
-const EXCHANGE_URL = "https://data.indianarealtors.com/api/canva/auth/exchange";
 const LS_TOKEN_KEY = "iar_canva_access_token_v1";
 
 function loadToken(): string {
@@ -22,14 +21,6 @@ function loadToken(): string {
   }
 }
 
-function saveToken(token: string) {
-  try {
-    if (token) localStorage.setItem(LS_TOKEN_KEY, token);
-    else localStorage.removeItem(LS_TOKEN_KEY);
-  } catch {
-    // ignore
-  }
-}
 
 function authHeaders(token: string): Record<string, string> {
   return token ? { Authorization: `Bearer ${token}` } : {};
@@ -41,18 +32,6 @@ async function j<T>(u: string, token: string) {
   return (await r.json()) as T;
 }
 
-async function postJson<T>(u: string, body: any, token?: string) {
-  const r = await fetch(u, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? authHeaders(token) : {}),
-    },
-    body: JSON.stringify(body ?? {}),
-  });
-  if (!r.ok) throw new Error(`${u} (${r.status})`);
-  return (await r.json()) as T;
-}
 
 // Helper to generate and insert AI caption
 async function generateAndInsertCaption(params: {
@@ -94,6 +73,7 @@ type Item = {
   title?: string;
   subtitle?: string;
   label?: string;
+  protected?: boolean;
 };
 
 // Saved Sets (Templates)
@@ -157,57 +137,104 @@ export function App() {
     }),
   ] as const;
   // --- Auth gate ---
-  const [accessToken, setAccessToken] = useState<string>(loadToken());
-  const [loginCode, setLoginCode] = useState<string>("");
+  const [authStatus, setAuthStatus] = useState<"checking" | "linked" | "unlinked">("checking");
   const [authBusy, setAuthBusy] = useState<boolean>(false);
   const [authError, setAuthError] = useState<string>("");
 
-  async function openConnect() {
-    setAuthError("");
-    await requestOpenExternalUrl({ url: CONNECT_URL });
+  async function getCanvaHeaders(): Promise<Record<string, string>> {
+    try {
+      const token = await auth.getCanvaUserToken();
+      return token ? { Authorization: `Bearer ${token}` } : {};
+    } catch {
+      return {};
+    }
   }
 
-  async function exchangeCode() {
+  async function jWithCanva<T>(u: string) {
+    const r = await fetch(u, { headers: { ...(await getCanvaHeaders()) } });
+    if (!r.ok) throw new Error(`${u} (${r.status})`);
+    return (await r.json()) as T;
+  }
+
+  async function trySilentLink() {
     setAuthBusy(true);
     setAuthError("");
     try {
-      const code = loginCode.trim();
-      if (!code) {
-        throw new Error(
-          intl.formatMessage({
-            defaultMessage: "Paste the code from the login page.",
-            description: "Error shown when the user tries to verify without pasting the login code",
-          }),
-        );
+      const headers = await getCanvaHeaders();
+      if (!headers.Authorization) {
+        setAuthStatus("unlinked");
+        return;
       }
-      const resp = await postJson<{ ok: boolean; access_token?: string; error?: string }>(
-        EXCHANGE_URL,
-        { code }
-      );
-      if (!resp.ok || !resp.access_token) {
-        throw new Error(
-          resp.error ||
-            intl.formatMessage({
-              defaultMessage: "Login failed",
-              description: "Fallback error shown when login verification fails and the server provides no custom error message",
-            }),
-        );
+
+      const r = await fetch(`${API}/auth/silent-link`, {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+          ...headers,
+        },
+        body: JSON.stringify({}),
+      });
+
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        setAuthStatus("unlinked");
+        setAuthError(String(data?.detail || data?.error || `Silent link failed (${r.status})`));
+        return;
       }
-      saveToken(resp.access_token);
-      setAccessToken(resp.access_token);
-      setLoginCode("");
+
+      setAuthStatus(data?.linked ? "linked" : "unlinked");
     } catch (e: any) {
+      setAuthStatus("unlinked");
       setAuthError(String(e?.message || e));
     } finally {
       setAuthBusy(false);
     }
   }
 
-  function logout() {
-    saveToken("");
-    setAccessToken("");
+  async function createLinkTicket() {
+    setAuthBusy(true);
     setAuthError("");
-    setLoginCode("");
+    try {
+      const headers = await getCanvaHeaders();
+      const r = await fetch(`${API}/auth/create-link-ticket`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...headers,
+        },
+        body: JSON.stringify({}),
+      });
+
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        throw new Error(String(data?.detail || data?.error || `Create link ticket failed (${r.status})`));
+      }
+      return data;
+    } finally {
+      setAuthBusy(false);
+    }
+  }
+
+  async function openLinkFlow() {
+    try {
+      const data = await createLinkTicket();
+      if (data?.linked) {
+        setAuthStatus("linked");
+        return;
+      }
+      if (!data?.link_url) {
+        throw new Error("No link URL was returned.");
+      }
+      await requestOpenExternalUrl({ url: data.link_url });
+    } catch (e: any) {
+      setAuthError(String(e?.message || e));
+    }
+  }
+
+  function logout() {
+    setAuthStatus("unlinked");
+    setAuthError("");
   }
   const CHART_PRESETS = [
     {
@@ -574,11 +601,11 @@ export function App() {
 
   // boot
   useEffect(() => {
-    if (!accessToken) return;
-    j<{ items: string[] }>(`${API}/geo_types`, accessToken).then((d) => setGeoTypes(d.items));
-    j<{ items: Item[] }>(`${API}/timespans`, accessToken).then((d) => setTimespans(d.items));
+    j<{ items: string[] }>(`${API}/geo_types`, "").then((d) => setGeoTypes(d.items));
+    j<{ items: Item[] }>(`${API}/timespans`, "").then((d) => setTimespans(d.items));
     setTemplates(loadAllTemplates());
-  }, [accessToken]);
+    void trySilentLink();
+  }, []);
 
   // default timeframe (monthly) once timespans load
   useEffect(() => {
@@ -589,7 +616,6 @@ export function App() {
 
   // geos for type
   useEffect(() => {
-    if (!accessToken) return;
     if (!geoType) {
       setGeos([]);
       return;
@@ -597,12 +623,16 @@ export function App() {
     const url = new URL(`${API}/geos`);
     url.searchParams.set("type", geoType);
     if (q) url.searchParams.set("q", q);
-    j<{ items: Item[] }>(url.toString(), accessToken).then((d) => setGeos(d.items));
-  }, [geoType, q, accessToken]);
+    j<{ items: Item[] }>(url.toString(), "").then((d) => {
+      const items = authStatus === "linked"
+        ? d.items
+        : d.items.filter((g) => !g.protected);
+      setGeos(items);
+    });
+  }, [geoType, q, authStatus]);
 
   // vizzes for geo+timespan
   useEffect(() => {
-    if (!accessToken) return;
     if (!geo || !timespan) {
       setVizzes([]);
       setSelectedVizzes([]);
@@ -611,8 +641,16 @@ export function App() {
     const url = new URL(`${API}/vizzes`);
     url.searchParams.set("geo_id", String(geo.id));
     url.searchParams.set("timespan", String(timespan.id));
-    j<{ items: Item[] }>(url.toString(), accessToken).then((d) => setVizzes(d.items));
-  }, [geo, timespan, accessToken]);
+    j<{ items: Item[] }>(url.toString(), "").then((d) => {
+      const items = authStatus === "linked"
+        ? d.items
+        : d.items.filter((v) => !v.protected);
+      setVizzes(items);
+      setSelectedVizzes((prev) =>
+        prev.filter((v) => items.some((item) => String(item.id) === String(v.id)))
+      );
+    });
+  }, [geo, timespan, authStatus]);
 
   // Apply pending viz ids from template after vizzes load
   useEffect(() => {
@@ -812,7 +850,7 @@ export function App() {
           // progress bump per metric
           const i = selectedVizzes.indexOf(v);
           bump(12 + Math.round((i / Math.max(1, selectedVizzes.length)) * 40));
-          const td = await j<{ title: string; subtitle: string; bullets: string[] }>(u.toString(), accessToken);
+          const td = await jWithCanva<{ title: string; subtitle: string; bullets: string[] }>(u.toString());
           if (td) payloads.push(td);
         }
 
@@ -906,11 +944,11 @@ export function App() {
 
         // progress bump per metric
         bump(12 + Math.round((i / Math.max(1, selectedVizzes.length)) * 35));
-        const jd = await j<{ png_url: string }>(meta.toString(), accessToken);
+        const jd = await jWithCanva<{ png_url: string }>(meta.toString());
         if (!jd?.png_url) throw new Error("chart_data missing png_url");
 
         bump(15 + Math.round((i / Math.max(1, selectedVizzes.length)) * 40));
-        const dataUrl = await fetchPngAsDataUrl(jd.png_url, accessToken);
+        const dataUrl = await fetchPngAsDataUrl(jd.png_url);
 
         bump(80);
         const asset = await upload({
@@ -973,101 +1011,6 @@ export function App() {
             defaultMessage: "Insert",
             description: "Primary button label used to insert the selected charts into Canva",
           }));
-  if (!accessToken) {
-    return (
-      <div style={shell}>
-        <div style={{ fontWeight: 900, fontSize: 14, marginBottom: 10 }}>
-          <FormattedMessage
-            defaultMessage="Connect your IAR account"
-            description="Heading shown on the login gate before the user connects their IAR account"
-          />
-        </div>
-        <div style={{ fontSize: 12, color: "#555", marginBottom: 10 }}>
-          <FormattedMessage
-            defaultMessage="You need to connect your IAR account before you can browse markets and insert charts."
-            description="Explanation shown on the login gate describing why account connection is required"
-          />
-        </div>
-
-        <button
-          onClick={openConnect}
-          style={{
-            width: "100%",
-            padding: "10px 12px",
-            height: 44,
-            borderRadius: 10,
-            border: "1px solid #ddd",
-            background: "white",
-            fontWeight: 900,
-            cursor: "pointer",
-            marginBottom: 10,
-          }}
-        >
-          <FormattedMessage
-            defaultMessage="Connect your IAR account"
-            description="Button label that opens the external IAR account connection page"
-          />
-        </button>
-
-        <div style={{ fontSize: 12, color: "#333", marginBottom: 6 }}>
-          <FormattedMessage
-            defaultMessage="Paste code"
-            description="Label above the input where the user pastes the login verification code"
-          />
-        </div>
-        <input
-          value={loginCode}
-          onChange={(e) => setLoginCode(e.target.value)}
-          placeholder={intl.formatMessage({
-            defaultMessage: "Paste the code from the connect page",
-            description: "Placeholder text in the login code input field",
-          })}
-          style={{ ...search, marginBottom: 10 }}
-        />
-
-        <button
-          onClick={exchangeCode}
-          disabled={authBusy || !loginCode.trim()}
-          style={{
-            width: "100%",
-            padding: "10px 12px",
-            height: 44,
-            borderRadius: 10,
-            border: "none",
-            background: "#6a5cff",
-            color: "white",
-            fontWeight: 900,
-            cursor: authBusy ? "not-allowed" : "pointer",
-            opacity: authBusy || !loginCode.trim() ? 0.6 : 1,
-            marginBottom: 10,
-          }}
-        >
-          {authBusy ? (
-            <FormattedMessage
-              defaultMessage="Verifying…"
-              description="Button text shown while the pasted login code is being verified"
-            />
-          ) : (
-            <FormattedMessage
-              defaultMessage="Verify and continue"
-              description="Button label that verifies the pasted login code and continues into the app"
-            />
-          )}
-        </button>
-
-        {authError && (
-          <div style={{ fontSize: 12, color: "#b00", marginTop: 6 }}>{authError}</div>
-        )}
-
-        <div style={{ fontSize: 11, color: "#777", marginTop: 12, lineHeight: 1.3 }}>
-          <FormattedMessage
-            defaultMessage="Tip: Keep the login page open, click “Copy code”, then paste it here."
-            description="Helper tip shown below the login code input explaining how to copy the verification code"
-          />
-        </div>
-      </div>
-    );
-  }
   return (
     <div style={shell}>
       <Header step={step} steps={steps} />
@@ -1117,9 +1060,72 @@ export function App() {
       </div>
 
       <div style={{ height: 10 }} />
+      <div style={{ marginBottom: 8, fontSize: 12 }}>
+        {authStatus === "linked" ? (
+          <span style={{ color: "#1f5f3b", fontWeight: 700 }}>
+            <FormattedMessage
+              defaultMessage="Linked to your IAR account"
+              description="Compact status text shown when the Canva user is linked"
+            />
+          </span>
+        ) : (
+          <span style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+            <button
+              type="button"
+              onClick={openLinkFlow}
+              disabled={authBusy}
+              style={{
+                border: "none",
+                background: "transparent",
+                padding: 0,
+                fontSize: 12,
+                fontWeight: 700,
+                color: "#6a5cff",
+                textDecoration: "underline",
+                cursor: authBusy ? "not-allowed" : "pointer",
+                opacity: authBusy ? 0.6 : 1,
+              }}
+            >
+              {authBusy
+                ? intl.formatMessage({
+                    defaultMessage: "Preparing link…",
+                    description: "Inline link text while preparing account link",
+                  })
+                : intl.formatMessage({
+                    defaultMessage: "Connect your IAR account",
+                    description: "Inline link text to start account linking",
+                  })}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => void trySilentLink()}
+              disabled={authBusy}
+              style={{
+                border: "none",
+                background: "transparent",
+                padding: 0,
+                fontSize: 12,
+                color: "#888",
+                textDecoration: "underline",
+                cursor: authBusy ? "not-allowed" : "pointer",
+              }}
+            >
+              <FormattedMessage
+                defaultMessage="Refresh"
+                description="Inline link to retry silent linking after returning from connect flow"
+              />
+            </button>
+
+            {authError && (
+              <span style={{ color: "#b00" }}>{authError}</span>
+            )}
+          </span>
+        )}
+      </div>
 
       {/* Step 0: Market picker (type + search + list) */}
-      {step === 0 && (
+      {step === 0 && authStatus === "linked" && (
         <div style={{ marginTop: 8, textAlign: "right" }}>
           <button
             type="button"
@@ -2440,10 +2446,14 @@ function Empty({ children }: { children: React.ReactNode }) {
   );
 }
 
-async function fetchPngAsDataUrl(url: string, token: string): Promise<string> {
+async function fetchPngAsDataUrl(url: string): Promise<string> {
+  const token = await auth.getCanvaUserToken().catch(() => "");
   const res = await fetch(url, {
     method: "GET",
-    headers: { Accept: "image/png", ...authHeaders(token) },
+    headers: {
+      Accept: "image/png",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
   });
   if (!res.ok) throw new Error(`PNG fetch failed: ${res.status}`);
   const blob = await res.blob();
