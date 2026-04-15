@@ -1112,7 +1112,7 @@ export function App() {
               }}
             >
               <FormattedMessage
-                defaultMessage="Refresh"
+                defaultMessage="Check connection"
                 description="Inline link to retry silent linking after returning from connect flow"
               />
             </button>
@@ -1125,29 +1125,6 @@ export function App() {
       </div>
 
       {/* Step 0: Market picker (type + search + list) */}
-      {step === 0 && authStatus === "linked" && (
-        <div style={{ marginTop: 8, textAlign: "right" }}>
-          <button
-            type="button"
-            onClick={logout}
-            style={{
-              border: "none",
-              background: "transparent",
-              padding: 0,
-              fontSize: 11,
-              fontWeight: 700,
-              color: "#888",
-              textDecoration: "underline",
-              cursor: "pointer",
-            }}
-          >
-            <FormattedMessage
-              defaultMessage="Disconnect"
-              description="Button label that disconnects the currently connected IAR account"
-            />
-          </button>
-        </div>
-      )}
       {step === 0 && (
         <Section
           title={intl.formatMessage({
@@ -1679,21 +1656,6 @@ export function App() {
                               {v.subtitle}
                             </div>
                           )}
-                          {isRecommendedViz(v) && (
-                            <div
-                              style={{
-                                fontSize: 11,
-                                color: "#6a5cff",
-                                fontWeight: 700,
-                                whiteSpace: "nowrap",
-                              }}
-                            >
-                              <FormattedMessage
-                                defaultMessage="Recommended"
-                                description="Badge shown next to metrics that are recommended by default"
-                              />
-                            </div>
-                          )}
                         </div>
                       )}
                     </div>
@@ -2179,23 +2141,31 @@ export function App() {
 
       {/* Nav */}
       <div style={{ height: 12 }} />
-      <div style={nav}>
-        <button onClick={back} disabled={step === 0 || isInserting} style={secondary}>
-          <FormattedMessage
-            defaultMessage="Back"
-            description="Secondary navigation button label used to go to the previous step"
-          />
-        </button>
+      <div style={{ ...nav, display: "grid", gap: 8 }}>
         <button
           onClick={step < 2 ? next : insert}
           disabled={buttonDisabled}
           style={{
             ...primary,
+            width: "100%",
             opacity: buttonDisabled ? 0.5 : 1,
             cursor: buttonDisabled ? "not-allowed" : "pointer",
           }}
         >
           {buttonLabel}
+        </button>
+        <button
+          onClick={back}
+          disabled={step === 0 || isInserting}
+          style={{
+            ...secondary,
+            width: "100%",
+          }}
+        >
+          <FormattedMessage
+            defaultMessage="Back"
+            description="Secondary navigation button label used to go to the previous step"
+          />
         </button>
       </div>
       {step === 0 && (
