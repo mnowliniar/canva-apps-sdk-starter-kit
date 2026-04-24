@@ -4,6 +4,7 @@ import { upload } from "@canva/asset";
 import { addElementAtPoint, createRichtextRange } from "@canva/design";
 import { requestOpenExternalUrl } from "@canva/platform";
 import { auth } from "@canva/user";
+import { Accordion, AccordionItem, Button, Checkbox, Link, LinkButton, ProgressBar, Select, Text, TextInput, Title, tokens } from "@canva/app-ui-kit";
 
 /* eslint-disable react/forbid-elements */
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -189,46 +190,6 @@ export function App() {
       setAuthError(String(e?.message || e));
     } finally {
       setAuthBusy(false);
-    }
-  }
-
-  async function createLinkTicket() {
-    setAuthBusy(true);
-    setAuthError("");
-    try {
-      const headers = await getCanvaHeaders();
-      const r = await fetch(`${API}/auth/create-link-ticket`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...headers,
-        },
-        body: JSON.stringify({}),
-      });
-
-      const data = await r.json().catch(() => ({}));
-      if (!r.ok) {
-        throw new Error(String(data?.detail || data?.error || `Create link ticket failed (${r.status})`));
-      }
-      return data;
-    } finally {
-      setAuthBusy(false);
-    }
-  }
-
-  async function openLinkFlow() {
-    try {
-      const data = await createLinkTicket();
-      if (data?.linked) {
-        setAuthStatus("linked");
-        return;
-      }
-      if (!data?.link_url) {
-        throw new Error("No link URL was returned.");
-      }
-      await requestOpenExternalUrl({ url: data.link_url });
-    } catch (e: any) {
-      setAuthError(String(e?.message || e));
     }
   }
 
@@ -570,6 +531,7 @@ export function App() {
   const [activeTemplateId, setActiveTemplateId] = useState<string>("");
   const [templateName, setTemplateName] = useState<string>("");
   const [showManageSets, setShowManageSets] = useState<boolean>(false);
+  const [savedSetsOpen, setSavedSetsOpen] = useState<boolean>(false);
   const [confirmDeleteArmed, setConfirmDeleteArmed] = useState<boolean>(false);
   const pendingVizIdsRef = useRef<string[] | null>(null);
   const pendingGeoIdRef = useRef<string | null>(null);
@@ -1016,113 +978,201 @@ export function App() {
       <Header step={step} steps={steps} />
       <div style={{ height: 8 }} />
 
-      <div style={summaryBar}>
-        <div style={summaryRow}>
-          <div style={summaryLabel}>
-            <FormattedMessage
-              defaultMessage="Market"
-              description="Label in the summary bar for the selected market"
-            />
-          </div>
-          <div style={summaryValue}>
-            {geo
-              ? (geo.name || geo.label)
-              : intl.formatMessage({
-                  defaultMessage: "—",
-                  description: "Placeholder shown in the summary bar when no market is selected",
-                })}
-          </div>
-        </div>
-        <div style={summaryRow}>
-          <div style={summaryLabel}>
-            <FormattedMessage
-              defaultMessage="Metrics"
-              description="Label in the summary bar for the selected metrics bundle"
-            />
-          </div>
-          <div style={summaryValue}>
-            {selectedVizzes.length
-              ? (() => {
-                  const first =
-                    (selectedVizzes[0]?.title ||
-                      selectedVizzes[0]?.name ||
-                      selectedVizzes[0]?.label ||
-                      "") as string;
+      {(geo || selectedVizzes.length > 0) && (
+        <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginBottom: 4 }}>
+          {geo && (
+            <Text size="small" tagName="div">
+              <Text size="small" tone="secondary" tagName="span">
+                <FormattedMessage defaultMessage="Market:" description="Inline summary label for the selected market" />
+              </Text>
+              {" "}
+              <Text size="small" variant="bold" tagName="span">{geo.name || geo.label}</Text>
+            </Text>
+          )}
+          {selectedVizzes.length > 0 && (
+            <Text size="small" tagName="div">
+              <Text size="small" tone="secondary" tagName="span">
+                <FormattedMessage defaultMessage="Metrics:" description="Inline summary label for the selected metrics" />
+              </Text>
+              {" "}
+              <Text size="small" variant="bold" tagName="span">
+                {(() => {
+                  const first = (selectedVizzes[0]?.title || selectedVizzes[0]?.name || selectedVizzes[0]?.label || "") as string;
                   const extra = selectedVizzes.length - 1;
                   return first + (extra > 0 ? ` +${extra}` : "");
-                })()
-              : intl.formatMessage({
-                  defaultMessage: "—",
-                  description: "Placeholder shown in the summary bar when no metrics are selected",
-                })}
-          </div>
+                })()}
+              </Text>
+            </Text>
+          )}
         </div>
-      </div>
+      )}
 
-      <div style={{ height: 10 }} />
-      <div style={{ marginBottom: 8, fontSize: 12 }}>
+      {/* Auth status */}
+      <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6, marginBottom: 10 }}>
         {authStatus === "linked" ? (
-          <span style={{ color: "#1f5f3b", fontWeight: 700 }}>
-            <FormattedMessage
-              defaultMessage="Linked to your IAR account"
-              description="Compact status text shown when the Canva user is linked"
-            />
-          </span>
+          <>
+            <div style={{ width: 7, height: 7, borderRadius: "50%", background: tokens.colorContentPositiveFg, flexShrink: 0 }} />
+            <Text size="small" tone="secondary" tagName="span">
+              <FormattedMessage
+                defaultMessage="Connected to IAR"
+                description="Compact status text shown when the Canva user is linked"
+              />
+            </Text>
+          </>
         ) : (
-          <span style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-            <button
-              type="button"
-              onClick={openLinkFlow}
-              disabled={authBusy}
-              style={{
-                border: "none",
-                background: "transparent",
-                padding: 0,
-                fontSize: 12,
-                fontWeight: 700,
-                color: "#6a5cff",
-                textDecoration: "underline",
-                cursor: authBusy ? "not-allowed" : "pointer",
-                opacity: authBusy ? 0.6 : 1,
-              }}
-            >
-              {authBusy
-                ? intl.formatMessage({
-                    defaultMessage: "Preparing link…",
-                    description: "Inline link text while preparing account link",
-                  })
-                : intl.formatMessage({
-                    defaultMessage: "Connect your IAR account",
-                    description: "Inline link text to start account linking",
-                  })}
-            </button>
-
-            <button
-              type="button"
-              onClick={() => void trySilentLink()}
-              disabled={authBusy}
-              style={{
-                border: "none",
-                background: "transparent",
-                padding: 0,
-                fontSize: 12,
-                color: "#888",
-                textDecoration: "underline",
-                cursor: authBusy ? "not-allowed" : "pointer",
-              }}
-            >
+          <>
+            <div style={{ width: 7, height: 7, borderRadius: "50%", background: tokens.colorUiNeutralBg, flexShrink: 0 }} />
+            <LinkButton onClick={() => void trySilentLink()} disabled={authBusy}>
               <FormattedMessage
                 defaultMessage="Check connection"
-                description="Inline link to retry silent linking after returning from connect flow"
+                description="Inline link to retry silent linking"
               />
-            </button>
-
+            </LinkButton>
             {authError && (
-              <span style={{ color: "#b00" }}>{authError}</span>
+              <Text tone="critical" size="small" tagName="span">{authError}</Text>
             )}
-          </span>
+          </>
         )}
       </div>
+
+      {/* Saved sets shortcut — always above the step flow */}
+      {step < 2 && (
+        <div style={{ marginBottom: 12 }}>
+          <Accordion dividers={false}>
+            <AccordionItem
+              title={intl.formatMessage({
+                defaultMessage: "Saved sets",
+                description: "Toggle label for the collapsible saved sets section",
+              })}
+              expanded={savedSetsOpen}
+              onClick={() => {
+                setSavedSetsOpen((v) => !v);
+                setShowManageSets(false);
+                setConfirmDeleteArmed(false);
+              }}
+            >
+              <div style={{ display: "grid", gap: 10 }}>
+                <div style={{ display: "flex", gap: 8, alignItems: "stretch" }}>
+                  <Select
+                    stretch
+                    placeholder={intl.formatMessage({
+                      defaultMessage: "Load a saved set…",
+                      description: "Placeholder option in the saved sets dropdown before a saved set is selected",
+                    })}
+                    value={activeTemplateId || undefined}
+                    options={allTemplatesSorted.map((t) => ({ value: t.id, label: t.name }))}
+                    onChange={(id) => setActiveTemplateId(id as string)}
+                    disabled={!canLoadAnyTemplate}
+                  />
+                  <Button
+                    variant="secondary"
+                    onClick={() => {
+                      const t = allTemplatesSorted.find((x) => x.id === activeTemplateId);
+                      if (t) loadTemplate(t);
+                    }}
+                    disabled={!activeTemplateId}
+                  >
+                    {intl.formatMessage({
+                      defaultMessage: "Load",
+                      description: "Button label to load the currently selected saved set",
+                    })}
+                  </Button>
+                </div>
+
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+                  <Text size="xsmall" tone="tertiary" tagName="div">
+                    <FormattedMessage
+                      defaultMessage="Saved sets are stored on this device."
+                      description="Helper text explaining that saved sets are stored locally on the current device"
+                    />
+                  </Text>
+                  <LinkButton
+                    onClick={() => {
+                      setShowManageSets((s) => !s);
+                      setConfirmDeleteArmed(false);
+                    }}
+                  >
+                    <FormattedMessage
+                      defaultMessage="Manage"
+                      description="Button label that opens the panel for managing saved sets"
+                    />
+                  </LinkButton>
+                </div>
+
+                {showManageSets && (
+                  <div style={{ display: "grid", gap: 8 }}>
+                    <Text size="small" variant="bold" tagName="div">
+                      <FormattedMessage
+                        defaultMessage="Manage saved sets"
+                        description="Heading for the panel where the user can manage saved sets"
+                      />
+                    </Text>
+
+                    <Text size="small" tone="secondary" tagName="div">
+                      {activeTemplate ? (
+                        <>
+                          <FormattedMessage
+                            defaultMessage="Selected:"
+                            description="Label shown before the name of the currently selected saved set in the manage panel"
+                          />{" "}
+                          <Text size="small" variant="bold" tagName="span">
+                            {activeTemplate.name}
+                          </Text>
+                        </>
+                      ) : (
+                        <FormattedMessage
+                          defaultMessage="Select a saved set above to manage it."
+                          description="Instruction shown in the manage saved sets panel when no saved set is selected"
+                        />
+                      )}
+                    </Text>
+
+                    <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", flexWrap: "wrap" }}>
+                      <Button
+                        variant="secondary"
+                        onClick={() => {
+                          if (!activeTemplate) return;
+                          if (!confirmDeleteArmed) {
+                            armDeleteOnce();
+                            return;
+                          }
+                          deleteActiveTemplate();
+                          setConfirmDeleteArmed(false);
+                        }}
+                        disabled={!activeTemplate}
+                      >
+                        {confirmDeleteArmed
+                          ? intl.formatMessage({
+                              defaultMessage: "Click again to delete",
+                              description: "Delete confirmation button text shown after the first click on delete saved set",
+                            })
+                          : intl.formatMessage({
+                              defaultMessage: "Delete saved set",
+                              description: "Button label to delete the currently selected saved set",
+                            })}
+                      </Button>
+                    </div>
+
+                    <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                      <LinkButton
+                        onClick={() => {
+                          setShowManageSets(false);
+                          setConfirmDeleteArmed(false);
+                        }}
+                      >
+                        <FormattedMessage
+                          defaultMessage="Done"
+                          description="Button label to close the manage saved sets panel"
+                        />
+                      </LinkButton>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </AccordionItem>
+          </Accordion>
+        </div>
+      )}
 
       {/* Step 0: Market picker (type + search + list) */}
       {step === 0 && (
@@ -1132,313 +1182,69 @@ export function App() {
             description: "Section title for the first step where the user selects a market",
           })}
         >
-          {/* Saved sets (optional shortcut) */}
-          <details style={{ marginBottom: 14 }}>
-            <summary
-              style={{
-                listStyle: "none",
-                cursor: "pointer",
-                userSelect: "none",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                padding: "10px 12px",
-                border: "1px solid #eee",
-                borderRadius: 10,
-                background: "white",
-                fontSize: 12,
-              }}
-            >
-              <span>
-                <FormattedMessage
-                  defaultMessage="Saved sets"
-                  description="Summary label for the collapsible saved sets section in the market selection step"
-                />
-              </span>
-              <span style={{ color: "#888", fontWeight: 700 }}>
-                <FormattedMessage
-                  defaultMessage="Optional"
-                  description="Small badge text indicating the saved sets shortcut is optional"
-                />
-              </span>
-            </summary>
-
-            <div style={{ marginTop: 10 }}>
-              <div
-                style={{
-                  display: "flex",
-                  gap: 8,
-                  alignItems: "stretch",
-                  marginBottom: 8,
-                }}
-              >
-                <select
-                  value={activeTemplateId}
-                  onChange={(e) => {
-                    const id = e.target.value;
-                    setActiveTemplateId(id);
-                  }}
-                  style={{
-                    flex: 1,
-                    padding: "10px 12px",
-                    height: 44,
-                    border: "1px solid #ddd",
-                    borderRadius: 8,
-                    boxSizing: "border-box",
-                  }}
-                  disabled={!canLoadAnyTemplate}
-                >
-                  <option value="">
-                    {intl.formatMessage({
-                      defaultMessage: "Load a saved set…",
-                      description: "Placeholder option in the saved sets dropdown before a saved set is selected",
-                    })}
-                  </option>
-                  {allTemplatesSorted.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.name}
-                    </option>
-                  ))}
-                </select>
-
-                <button
-                  onClick={() => {
-                    const t = allTemplatesSorted.find((x) => x.id === activeTemplateId);
-                    if (t) loadTemplate(t);
-                  }}
-                  disabled={!activeTemplateId}
-                  style={{
-                    padding: "0 14px",
-                    height: 44,
-                    borderRadius: 10,
-                    border: "1px solid #ddd",
-                    background: "white",
-                    fontWeight: 800,
-                    cursor: activeTemplateId ? "pointer" : "not-allowed",
-                    opacity: activeTemplateId ? 1 : 0.5,
-                    fontSize: 12,
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  <FormattedMessage
-                    defaultMessage="Load"
-                    description="Button label to load the currently selected saved set"
-                  />
-                </button>
-              </div>
-
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  gap: 10,
-                }}
-              >
-                <div style={{ fontSize: 11, color: "#888" }}>
-                  <FormattedMessage
-                    defaultMessage="Saved sets are stored on this device."
-                    description="Helper text explaining that saved sets are stored locally on the current device"
-                  />
-                </div>
-
-                <button
-                  onClick={() => {
-                    setShowManageSets((s) => !s);
-                    setConfirmDeleteArmed(false);
-                  }}
-                  style={{
-                    border: "none",
-                    background: "transparent",
-                    padding: 0,
-                    fontSize: 11,
-                    color: "#888",
-                    fontWeight: 700,
-                    cursor: "pointer",
-                    textDecoration: "underline",
-                    whiteSpace: "nowrap",
-                  }}
-                  aria-expanded={showManageSets}
-                >
-                  <FormattedMessage
-                    defaultMessage="Manage saved sets"
-                    description="Button label that opens the panel for managing saved sets"
-                  />
-                </button>
-              </div>
-
-              {showManageSets && (
-                <div
-                  style={{
-                    marginTop: 10,
-                    border: "1px solid #eee",
-                    borderRadius: 10,
-                    padding: 10,
-                    background: "#fafafa",
-                    display: "grid",
-                    gap: 8,
-                  }}
-                >
-                  <div style={{ fontSize: 12, fontWeight: 800, color: "#333" }}>
-                    <FormattedMessage
-                      defaultMessage="Manage saved sets"
-                      description="Heading for the panel where the user can manage saved sets"
-                    />
-                  </div>
-
-                  <div style={{ fontSize: 12, color: "#666" }}>
-                    {activeTemplate ? (
-                      <>
-                        <FormattedMessage
-                          defaultMessage="Selected:"
-                          description="Label shown before the name of the currently selected saved set in the manage panel"
-                        />{" "}
-                        <span style={{ fontWeight: 800, color: "#111" }}>
-                          {activeTemplate.name}
-                        </span>
-                      </>
-                    ) : (
-                      <FormattedMessage
-                        defaultMessage="Select a saved set above to manage it."
-                        description="Instruction shown in the manage saved sets panel when no saved set is selected"
-                      />
-                    )}
-                  </div>
-
-                  <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", flexWrap: "wrap" }}>
-                    <button
-                      onClick={() => {
-                        if (!activeTemplate) return;
-                        if (!confirmDeleteArmed) {
-                          armDeleteOnce();
-                          return;
-                        }
-                        deleteActiveTemplate();
-                        setConfirmDeleteArmed(false);
-                      }}
-                      disabled={!activeTemplate}
-                      style={{
-                        padding: "6px 10px",
-                        borderRadius: 10,
-                        border: "1px solid #ddd",
-                        background: "white",
-                        fontWeight: 800,
-                        cursor: !activeTemplate ? "not-allowed" : "pointer",
-                        opacity: !activeTemplate ? 0.5 : 1,
-                      }}
-                    >
-                      {confirmDeleteArmed ? (
-                        <FormattedMessage
-                          defaultMessage="Click again to delete"
-                          description="Delete confirmation button text shown after the first click on delete saved set"
-                        />
-                      ) : (
-                        <FormattedMessage
-                          defaultMessage="Delete saved set"
-                          description="Button label to delete the currently selected saved set"
-                        />
-                      )}
-                    </button>
-                  </div>
-
-                  <div style={{ display: "flex", justifyContent: "flex-end" }}>
-                    <button
-                      onClick={() => {
-                        setShowManageSets(false);
-                        setConfirmDeleteArmed(false);
-                      }}
-                      style={{
-                        border: "none",
-                        background: "transparent",
-                        padding: 0,
-                        fontSize: 11,
-                        color: "#888",
-                        fontWeight: 800,
-                        cursor: "pointer",
-                      }}
-                    >
-                      <FormattedMessage
-                        defaultMessage="Done"
-                        description="Button label to close the manage saved sets panel"
-                      />
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          </details>
-          <div style={{ marginTop:4, marginBottom: 8 }}>
-            <FormattedMessage
-              defaultMessage="Type"
-              description="Label above the chips used to choose the market geography type"
+          <div style={{ marginTop: 4, marginBottom: 8 }}>
+            <Select
+              stretch
+              placeholder={intl.formatMessage({
+                defaultMessage: "Choose a type",
+                description: "Placeholder for the geo type dropdown",
+              })}
+              value={geoType || undefined}
+              options={visibleGeoTypes.map((t) => ({ value: t, label: t }))}
+              onChange={(value) => chooseGeoType(value as string)}
             />
           </div>
-          <div style={{ ...chips, marginBottom: 10 }}>
-            {visibleGeoTypes.map((t) => (
-              <Chip
-                key={t}
-                active={t === geoType}
-                onClick={() => chooseGeoType(t)}
-                label={t}
-              />
-            ))}
-          </div>
 
-          <input
-            placeholder={intl.formatMessage({
-              defaultMessage: "Search markets",
-              description: "Placeholder text in the market search input",
-            })}
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            style={search}
-            disabled={!geoType}
-          />
-
-          {geo && (
-            <div style={{ margin: "6px 0 10px", fontSize: 12, color: "#444" }}>
-              <strong>
-                <FormattedMessage
-                  defaultMessage="Selected market:"
-                  description="Label shown before the currently selected market name"
+          {geoType && (
+            <>
+              <div style={{ marginTop: 8, marginBottom: 8 }}>
+                <TextInput
+                  type="search"
+                  placeholder={intl.formatMessage({
+                    defaultMessage: "Search markets",
+                    description: "Placeholder text in the market search input",
+                  })}
+                  value={q}
+                  onChange={(value) => setQ(value)}
                 />
+              </div>
 
-              {/* eslint-disable-next-line formatjs/no-literal-string-in-jsx */}
-              </strong>{" "}
-              {geo.name || geo.label}
-            </div>
+              {geo && (
+                <div style={{ margin: "6px 0 4px" }}>
+                  <Text size="small" tagName="div">
+                    <Text size="small" variant="bold" tagName="span">
+                      <FormattedMessage
+                        defaultMessage="Selected market:"
+                        description="Label shown before the currently selected market name"
+                      />
+                    </Text>
+                    {/* eslint-disable-next-line formatjs/no-literal-string-in-jsx */}
+                    {" "}{geo.name || geo.label}
+                  </Text>
+                </div>
+              )}
+
+              <List>
+                {geos.map((g) => (
+                  <Row
+                    key={String(g.id)}
+                    active={geo?.id === g.id}
+                    title={g.name || g.label}
+                    subtitle={g.subtitle}
+                    onClick={() => setGeo(g)}
+                  />
+                ))}
+                {geos.length === 0 && (
+                  <Empty>
+                    <FormattedMessage
+                      defaultMessage="Start typing to filter…"
+                      description="Empty-state message shown when the user should type to filter the market list"
+                    />
+                  </Empty>
+                )}
+              </List>
+            </>
           )}
-
-          <List>
-            {!geoType && (
-              <Empty>
-                <FormattedMessage
-                  defaultMessage="Choose a type to load markets"
-                  description="Empty-state message shown before the user selects a market type"
-                />
-              </Empty>
-            )}
-            {!!geoType &&
-              geos.map((g) => (
-                <Row
-                  key={String(g.id)}
-                  active={geo?.id === g.id}
-                  title={g.name || g.label}
-                  subtitle={g.subtitle}
-                  onClick={() => {
-                    setGeo(g);
-                  }}
-                />
-              ))}
-            {!!geoType && geos.length === 0 && (
-              <Empty>
-                <FormattedMessage
-                  defaultMessage="Start typing to filter…"
-                  description="Empty-state message shown when the user should type to filter the market list"
-                />
-              </Empty>
-            )}
-          </List>
         </Section>
       )}
 
@@ -1456,30 +1262,28 @@ export function App() {
               description="Label above the dropdown used to select the metric timeframe"
             />
           </div>
-          <select
-            value={timespan ? String(timespan.id) : ""}
-            onChange={(e) => {
-              const id = e.target.value;
+          <Select
+            stretch
+            placeholder={intl.formatMessage({
+              defaultMessage: "Select a timeframe",
+              description: "Placeholder for the timeframe dropdown when nothing is selected",
+            })}
+            value={timespan ? String(timespan.id) : undefined}
+            options={timespans.map((t) => ({ value: String(t.id), label: t.label || String(t.id) }))}
+            onChange={(id) => {
               const t = timespans.find((x) => String(x.id) === id) || null;
               if (t) setTimespan(t);
             }}
-            style={{ width: "100%", padding: "10px 12px", height: 44, border: "1px solid #ddd", borderRadius: 8, marginBottom: 12, boxSizing: "border-box" }}
-          >
-            {timespans.map((t) => (
-              <option key={String(t.id)} value={String(t.id)}>
-                {t.label || String(t.id)}
-              </option>
-            ))}
-          </select>
+          />
 
           <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginTop:4, marginBottom: 8 }}>
-            <div>
+            <Text size="small" variant="bold" tagName="div">
               <FormattedMessage
                 defaultMessage="Metrics"
                 description="Label above the list of metrics in step two"
               />
-            </div>
-            <div style={{ color: selectedVizzes.length >= BUNDLE_MAX ? "#6a5cff" : "#666" }}>
+            </Text>
+            <Text size="small" tone={selectedVizzes.length >= BUNDLE_MAX ? "primary" : "secondary"} tagName="div">
               {intl.formatMessage(
                 {
                   defaultMessage: "Bundle ({count}/{max})",
@@ -1487,94 +1291,27 @@ export function App() {
                 },
                 { count: selectedVizzes.length, max: BUNDLE_MAX },
               )}
-            </div>
+            </Text>
           </div>
 
-          {selectedVizzes.length > 0 && (
-            <div style={{ ...chips, marginBottom: 10 }}>
-              {selectedVizzes.map((v) => (
-                <div
-                  key={String(v.id)}
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 8,
-                    padding: "6px 10px",
-                    borderRadius: 16,
-                    border: "1px solid #ddd",
-                    background: "white",
-                    fontSize: 12,
-                  }}
-                >
-                  <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 190 }}>
-                    {v.title || v.name || v.label}
-                  </span>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      removeVizFromBundle(v.id);
-                    }}
-                    style={{
-                      border: "none",
-                      background: "transparent",
-                      cursor: "pointer",
-                      color: "#666",
-                      fontWeight: 900,
-                      lineHeight: 1,
-                    }}
-                    aria-label={intl.formatMessage({
-                      defaultMessage: "Remove metric",
-                      description: "Accessible label for the button that removes a selected metric chip",
-                    })}
-                    title={intl.formatMessage({
-                      defaultMessage: "Remove",
-                      description: "Tooltip text for the button that removes a selected metric chip",
-                    })}
 
-                  >
-                      {intl.formatMessage({
-                        defaultMessage: "×",
-                        description: "Icon glyph used in the metric chip remove button",
-                      })}
-                  </button>
-                </div>
-              ))}
-
-              <button
-                onClick={() => clearBundle()}
-                style={{
-                  padding: "6px 10px",
-                  borderRadius: 16,
-                  border: "1px solid #eee",
-                  background: "#fafafa",
-                  cursor: "pointer",
-                  fontSize: 12,
-                  color: "#666",
-                }}
-              >
-                <FormattedMessage
-                  defaultMessage="Clear"
-                  description="Button label that clears all currently selected metrics from the bundle"
-                />
-              </button>
-            </div>
-          )}
-
-          <input
-            placeholder={selectedVizzes.length >= BUNDLE_MAX
-              ? intl.formatMessage({
-                  defaultMessage: "Bundle full (3)",
-                  description: "Placeholder shown in the metric search input when the user has already selected the maximum number of metrics",
-                })
-              : intl.formatMessage({
-                  defaultMessage: "Search metrics",
-                  description: "Placeholder text in the metric search input",
-                })}
-            value={vizQ}
-            onChange={(e) => setVizQ(e.target.value)}
-            style={search}
-            disabled={!timespan}
-          />
+          <div style={{ marginBottom: 8 }}>
+            <TextInput
+              type="search"
+              placeholder={selectedVizzes.length >= BUNDLE_MAX
+                ? intl.formatMessage({
+                    defaultMessage: "Bundle full (3)",
+                    description: "Placeholder shown in the metric search input when the user has already selected the maximum number of metrics",
+                  })
+                : intl.formatMessage({
+                    defaultMessage: "Search metrics",
+                    description: "Placeholder text in the metric search input",
+                  })}
+              value={vizQ}
+              onChange={(value) => setVizQ(value)}
+              disabled={!timespan}
+            />
+          </div>
 
           <List>
             {(() => {
@@ -1639,58 +1376,48 @@ export function App() {
                       gap: 10,
                       alignItems: "center",
                       padding: 9,
-                      background: selected ? "#f2f7ff" : isRecommendedViz(v) ? "#fbfbff" : "white",
-                      borderBottom: "1px solid #f4f4f4",
-                      borderLeft: isRecommendedViz(v) ? "3px solid #d9d6ff" : "3px solid transparent",
+                      background: selected ? tokens.colorActionSelectedBg : tokens.elevationSurfaceBg,
+                      borderBottom: `1px solid ${tokens.colorUiNeutralBg}`,
+                      borderLeft: isRecommendedViz(v) ? `3px solid ${tokens.colorActionSelectedBorder}` : "3px solid transparent",
                       cursor: "default",
                     }}
                   >
                     <div>
-                      <div style={{ fontWeight: 700, fontSize: 12, lineHeight: 1.25 }}>
+                      <Text size="small" variant="bold" tagName="div">
                         {v.title || v.name}
-                      </div>
+                      </Text>
                       {(v.subtitle || isRecommendedViz(v)) && (
                         <div style={{ display: "flex", gap: 8, alignItems: "baseline" }}>
                           {v.subtitle && (
-                            <div style={{ fontSize: 12, lineHeight: 1.25, color: "#666", flex: 1 }}>
-                              {v.subtitle}
+                            <div style={{ flex: 1 }}>
+                              <Text size="small" tone="secondary" tagName="div">
+                                {v.subtitle}
+                              </Text>
                             </div>
                           )}
                         </div>
                       )}
                     </div>
 
-                    <button
+                    <Button
+                      variant="secondary"
+                      selected={selected}
                       onClick={() => {
                         if (selected) removeVizFromBundle(v.id);
                         else addVizToBundle(v);
                       }}
                       disabled={disabledAdd}
-                      style={{
-                        padding: "6px 10px",
-                        borderRadius: 16,
-                        border: selected ? "1px solid #c9c6ff" : "1px solid #ddd",
-                        background: selected ? "#f5f4ff" : "white",
-                        cursor: disabledAdd ? "not-allowed" : "pointer",
-                        fontSize: 12,
-                        fontWeight: 800,
-                        color: disabledAdd ? "#aaa" : "#111",
-                        opacity: disabledAdd ? 0.6 : 1,
-                        whiteSpace: "nowrap",
-                      }}
                     >
-                      {selected ? (
-                        <FormattedMessage
-                          defaultMessage="Remove"
-                          description="Button label used to remove a metric from the selected bundle"
-                        />
-                      ) : (
-                        <FormattedMessage
-                          defaultMessage="Add"
-                          description="Button label used to add a metric to the selected bundle"
-                        />
-                      )}
-                    </button>
+                      {selected
+                        ? intl.formatMessage({
+                            defaultMessage: "Remove",
+                            description: "Button label used to remove a metric from the selected bundle",
+                          })
+                        : intl.formatMessage({
+                            defaultMessage: "Add",
+                            description: "Button label used to add a metric to the selected bundle",
+                          })}
+                    </Button>
                   </div>
                 );
               });
@@ -1710,16 +1437,16 @@ export function App() {
           {/* Post-insert actions (save/export after you insert) */}
           {postInsertMode && (
             <div style={{
-              border: "1px solid #e9e9ef",
+              border: `1px solid ${tokens.colorActionSecondaryBorder}`,
               borderRadius: 12,
               padding: 12,
-              background: "#fbfbff",
+              background: tokens.elevationSurfaceBg,
               marginBottom: 14,
               display: "grid",
               gap: 10,
             }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 10 }}>
-                <div style={{ fontWeight: 900, fontSize: 12 }}>
+                <Text size="small" variant="bold" tagName="div">
                   {intl.formatMessage(
                     {
                       defaultMessage: "Inserted {count} {itemLabel}",
@@ -1739,142 +1466,94 @@ export function App() {
                             }),
                     },
                   )}
-                </div>
-                <button
+                </Text>
+                <LinkButton
                   onClick={() => {
                     setPostInsertMode(false);
                     setLastInsertCount(0);
-                  }}
-                  style={{
-                    border: "none",
-                    background: "transparent",
-                    padding: 0,
-                    color: "#666",
-                    fontWeight: 900,
-                    cursor: "pointer",
-                    fontSize: 12,
                   }}
                 >
                   <FormattedMessage
                     defaultMessage="Dismiss"
                     description="Button label that closes the post-insert confirmation panel"
                   />
-                </button>
+                </LinkButton>
               </div>
 
-              <div style={{ fontSize: 12, color: "#666" }}>
+              <Text size="small" tone="secondary" tagName="div">
                 <FormattedMessage
                   defaultMessage="Save this bundle so you can load it next time and skip setup."
                   description="Helper text encouraging the user to save the current bundle after insertion"
                 />
-              </div>
+              </Text>
 
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                <input
+                <TextInput
                   placeholder={intl.formatMessage({
                     defaultMessage: "Name this saved set",
                     description: "Placeholder text in the input used to name a saved set after insertion",
                   })}
                   value={templateName}
-                  onChange={(e) => setTemplateName(e.target.value)}
-                  style={{
-                    flex: 1,
-                    minWidth: 180,
-                    padding: 10,
-                    height: 44,
-                    border: "1px solid #ddd",
-                    borderRadius: 8,
-                    boxSizing: "border-box",
-                  }}
+                  onChange={(value) => setTemplateName(value)}
                 />
-                <button
+                <Button
+                  variant="secondary"
                   onClick={saveNewTemplate}
                   disabled={!geo || !timespan || selectedVizzes.length === 0}
-                  style={{
-                    padding: "10px 12px",
-                    height: 44,
-                    borderRadius: 10,
-                    border: "1px solid #ddd",
-                    background: "white",
-                    fontWeight: 900,
-                    cursor: "pointer",
-                    opacity: !geo || !timespan || selectedVizzes.length === 0 ? 0.5 : 1,
-                  }}
                 >
-                  <FormattedMessage
-                    defaultMessage="Save"
-                    description="Button label used to save the current bundle as a saved set"
-                  />
-                </button>
+                  {intl.formatMessage({
+                    defaultMessage: "Save",
+                    description: "Button label used to save the current bundle as a saved set",
+                  })}
+                </Button>
               </div>
 
               {/* New button: Generate AI caption */}
-              <button
+              <Button
+                variant="secondary"
+                stretch
                 onClick={() => {
                   if (!geo || selectedVizzes.length === 0) return;
-
-                  // Caption endpoint expects the same query params as the text/chart requests.
-                  // Use the first selected metric as the caption source.
                   generateAndInsertCaption({
                     geo_id: geo.id,
                     viz_id: selectedVizzes[0]!.id,
                     proptype,
                   });
                 }}
-                style={{
-                  width: "100%",
-                  padding: "10px 12px",
-                  height: 44,
-                  borderRadius: 10,
-                  border: "1px solid #ddd",
-                  background: "#ffffff",
-                  fontWeight: 900,
-                  cursor: "pointer",
-                  color: "#333",
+                disabled={!geo || selectedVizzes.length === 0}
+              >
+                {intl.formatMessage({
+                  defaultMessage: "Generate AI caption",
+                  description: "Button label used to generate and insert an AI-written caption for the selected metric",
+                })}
+              </Button>
+
+              <Button
+                variant="secondary"
+                stretch
+                onClick={() => {
+                  setPostInsertMode(false);
+                  setLastInsertCount(0);
+                  setStep(0);
                 }}
               >
-                <FormattedMessage
-                  defaultMessage="Generate AI caption"
-                  description="Button label used to generate and insert an AI-written caption for the selected metric"
-                />
-              </button>
-
-              <div style={{ display: "flex", justifyContent: "flex-end" }}>
-                <button
-                  onClick={() => {
-                    // Keep market + options; just return to the beginning of the flow
-                    setPostInsertMode(false);
-                    setLastInsertCount(0);
-                    setStep(0);
-                  }}
-                  style={{
-                    width: "100%",
-                    padding: "10px 12px",
-                    height: 44,
-                    borderRadius: 10,
-                    border: "1px solid #ddd",
-                    background: "white",
-                    fontWeight: 900,
-                    cursor: "pointer",
-                    color: "#333",
-                  }}
-                >
-                  <FormattedMessage
-                    defaultMessage="Start over"
-                    description="Button label that returns the user to the beginning of the setup flow after insertion"
-                  />
-                </button>
-              </div>
+                {intl.formatMessage({
+                  defaultMessage: "Start over",
+                  description: "Button label that returns the user to the beginning of the setup flow after insertion",
+                })}
+              </Button>
 
             </div>
           )}
           <div style={{ marginBottom: 12 }}>
             <div>
-              <div style={{ fontWeight: 600, marginBottom: 8 }}>
-                <FormattedMessage
-                  defaultMessage="Choose widget"
-                  description="Heading above the widget selection cards in step three"
-                />
+              <div style={{ marginBottom: 8 }}>
+                <Text size="small" variant="bold" tagName="div">
+                  <FormattedMessage
+                    defaultMessage="Choose widget"
+                    description="Heading above the widget selection cards in step three"
+                  />
+                </Text>
               </div>
               <div style={{ display: "grid", gap: 10 }}>
                 {WIDGETS.map((w) => {
@@ -1887,8 +1566,8 @@ export function App() {
                         textAlign: "left",
                         padding: 10,
                         borderRadius: 12,
-                        border: active ? "1px solid #c9c6ff" : "1px solid #e6e6ee",
-                        background: active ? "#f5f4ff" : "white",
+                        border: active ? `1px solid ${tokens.colorActionSelectedBorder}` : `1px solid ${tokens.colorActionSecondaryBorder}`,
+                        background: active ? tokens.colorActionSelectedBg : tokens.elevationSurfaceBg,
                         cursor: "pointer",
                         display: "grid",
                         gridTemplateColumns: "64px 1fr",
@@ -1902,8 +1581,8 @@ export function App() {
                           width: 64,
                           height: 44,
                           borderRadius: 10,
-                          background: "#f2f2f2",
-                          border: "1px solid #e3e3e3",
+                          background: tokens.colorUiNeutralBg,
+                          border: `1px solid ${tokens.colorActionSecondaryBorder}`,
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "center",
@@ -1922,179 +1601,125 @@ export function App() {
                       </div>
 
                       <div style={{ display: "grid", gap: 2 }}>
-                        <div style={{ fontWeight: 800, fontSize: 12, lineHeight: 1.15, color: "#111" }}>
-                          {w.label}
-                        </div>
-                        <div style={{ fontSize: 12, lineHeight: 1.25, color: "#666" }}>
-                          {w.desc}
-                        </div>
+                        <Text size="small" variant="bold" tagName="div">{w.label}</Text>
+                        <Text size="small" tone="secondary" tagName="div">{w.desc}</Text>
                       </div>
                     </button>
                   );
                 })}
               </div>
             </div>
-            <div style={{ fontWeight: 600, margin: "12px 0 6px" }}>
-              <FormattedMessage
-                defaultMessage="Size"
-                description="Heading above the preset size buttons for the selected widget"
-              />
+            <div style={{ margin: "12px 0 6px" }}>
+              <Text size="small" variant="bold" tagName="div">
+                <FormattedMessage
+                  defaultMessage="Size"
+                  description="Heading above the preset size buttons for the selected widget"
+                />
+              </Text>
             </div>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               {presetSet.map(p => (
-                <button key={p.id}
+                <Button
+                  key={p.id}
+                  variant="tertiary"
+                  selected={presetId === p.id}
                   onClick={() => setPresetId(p.id)}
-                  style={{
-                    padding:"6px 10px", borderRadius:16, border:"1px solid #ddd",
-                    background: presetId === p.id ? "#eef5ff" : "white"
-                  }}>
+                >
                   {p.label}
-                </button>
+                </Button>
               ))}
             </div>
             <details style={{ marginTop: 10 }}>
-              <summary style={{ fontWeight: 700, cursor: "pointer", userSelect: "none" }}>
-                <FormattedMessage
-                  defaultMessage="Options"
-                  description="Summary label for the collapsible widget options panel"
-                />
+              <summary style={{ cursor: "pointer", userSelect: "none" }}>
+                <Text variant="bold" tagName="span">
+                  <FormattedMessage
+                    defaultMessage="Options"
+                    description="Summary label for the collapsible widget options panel"
+                  />
+                </Text>
               </summary>
               <div style={{ marginTop: 10, display: "grid", gap: 8 }}>
                 {(widget === "chart" || widget === "strip") && (
-                  <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                    <input
-                      type="checkbox"
-                      checked={showTitle}
-                      onChange={(e) => setShowTitle(e.target.checked)}
-                    />
-                    <span>
-                      <FormattedMessage
-                        defaultMessage="Show title block"
-                        description="Checkbox label that controls whether the chart title block is shown"
-                      />
-                    </span>
-                  </label>
+                  <Checkbox
+                    checked={showTitle}
+                    onChange={(_value, checked) => setShowTitle(checked)}
+                    label={intl.formatMessage({
+                      defaultMessage: "Show title block",
+                      description: "Checkbox label that controls whether the chart title block is shown",
+                    })}
+                  />
                 )}
-                <label style={{ display: "grid", gap: 4 }}>
-                  <span>
+                <div style={{ display: "grid", gap: 4 }}>
+                  <Text size="small" tagName="span">
                     <FormattedMessage
                       defaultMessage="Brand color (hex)"
                       description="Label for the input where the user can enter a custom hex brand color"
                     />
-                  </span>
-                  <input
+                  </Text>
+                  <TextInput
                     placeholder={intl.formatMessage({
                       defaultMessage: "#006E8E",
                       description: "Placeholder example shown in the custom brand color hex input",
                     })}
                     value={color}
-                    onChange={(e) => setColor(e.target.value)}
-                    style={{ width: "100%", padding: 6, border: "1px solid #ddd", borderRadius: 6, boxSizing:"border-box" }}
+                    onChange={(value) => setColor(value)}
+                    error={normalizeHex(color) === "" && color.trim() !== ""}
                   />
                   {normalizeHex(color) === "" && color.trim() !== "" && (
-                    <span style={{ color: "#b00", fontSize: 12 }}>
+                    <Text tone="critical" size="small" tagName="span">
                       <FormattedMessage
                         defaultMessage="Enter a valid hex (e.g. #006E8E)"
                         description="Validation message shown when the user enters an invalid hex color"
                       />
-                    </span>
+                    </Text>
                   )}
-                </label>
-                <label style={{ display: "grid", gap: 4 }}>
-                  <span>
+                </div>
+                <div style={{ display: "grid", gap: 4 }}>
+                  <Text size="small" tagName="span">
                     <FormattedMessage
                       defaultMessage="Background"
                       description="Label for the dropdown used to choose the widget background color"
                     />
-                  </span>
-                  <select
+                  </Text>
+                  <Select
+                    stretch
                     value={bg}
-                    onChange={(e) => setBg(e.target.value)}
-                    style={{ width: "100%", padding: 6, border: "1px solid #ddd", borderRadius: 6, boxSizing: "border-box" }}
-                  >
-                    <option value="white">
-                      {intl.formatMessage({
-                        defaultMessage: "White",
-                        description: "Background color option for a white widget background",
-                      })}
-                    </option>
-                    <option value="transparent">
-                      {intl.formatMessage({
-                        defaultMessage: "Transparent",
-                        description: "Background color option for a transparent widget background",
-                      })}
-                    </option>
-                    <option value="#faf8f5">
-                      {intl.formatMessage({
-                        defaultMessage: "Warm White",
-                        description: "Background color option for a warm white widget background",
-                      })}
-                    </option>
-                    <option value="#f3f4f6">
-                      {intl.formatMessage({
-                        defaultMessage: "Light Gray",
-                        description: "Background color option for a light gray widget background",
-                      })}
-                    </option>
-                    <option value="#f0fbfb">
-                      {intl.formatMessage({
-                        defaultMessage: "Soft IAR Teal",
-                        description: "Background color option for a soft IAR teal widget background",
-                      })}
-                    </option>
-                  </select>
-                </label>
-                <label style={{ display: "grid", gap: 4 }}>
-                  <span>
+                    options={[
+                      { value: "white", label: intl.formatMessage({ defaultMessage: "White", description: "Background color option for a white widget background" }) },
+                      { value: "transparent", label: intl.formatMessage({ defaultMessage: "Transparent", description: "Background color option for a transparent widget background" }) },
+                      { value: "#faf8f5", label: intl.formatMessage({ defaultMessage: "Warm White", description: "Background color option for a warm white widget background" }) },
+                      { value: "#f3f4f6", label: intl.formatMessage({ defaultMessage: "Light Gray", description: "Background color option for a light gray widget background" }) },
+                      { value: "#f0fbfb", label: intl.formatMessage({ defaultMessage: "Soft IAR Teal", description: "Background color option for a soft IAR teal widget background" }) },
+                    ]}
+                    onChange={(value) => setBg(value as string)}
+                  />
+                </div>
+                <div style={{ display: "grid", gap: 4 }}>
+                  <Text size="small" tagName="span">
                     <FormattedMessage
                       defaultMessage="Font size"
                       description="Label for the dropdown used to choose the widget font size"
                     />
-                  </span>
-                  <select
+                  </Text>
+                  <Select
+                    stretch
                     value={fontSize}
-                    onChange={(e) => setFontSize(e.target.value)}
-                    style={{
-                      width: "100%",
-                      padding: 6,
-                      border: "1px solid #ddd",
-                      borderRadius: 6,
-                      boxSizing: "border-box",
-                    }}
-                  >
-                    <option value="normal">
-                      {intl.formatMessage({
-                        defaultMessage: "Normal",
-                        description: "Font size option for the normal widget font size",
-                      })}
-                    </option>
-                    <option value="large">
-                      {intl.formatMessage({
-                        defaultMessage: "Large",
-                        description: "Font size option for the large widget font size",
-                      })}
-                    </option>
-                    <option value="compact">
-                      {intl.formatMessage({
-                        defaultMessage: "Compact",
-                        description: "Font size option for the compact widget font size",
-                      })}
-                    </option>
-                  </select>
-                </label>
-                <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                  <input
-                    type="checkbox"
-                    checked={border}
-                    onChange={(e) => setBorder(e.target.checked)}
+                    options={[
+                      { value: "normal", label: intl.formatMessage({ defaultMessage: "Normal", description: "Font size option for the normal widget font size" }) },
+                      { value: "large", label: intl.formatMessage({ defaultMessage: "Large", description: "Font size option for the large widget font size" }) },
+                      { value: "compact", label: intl.formatMessage({ defaultMessage: "Compact", description: "Font size option for the compact widget font size" }) },
+                    ]}
+                    onChange={(value) => setFontSize(value as string)}
                   />
-                  <span>
-                    <FormattedMessage
-                      defaultMessage="Show card border"
-                      description="Checkbox label that controls whether a border is shown around the widget"
-                    />
-                  </span>
-                </label>
+                </div>
+                <Checkbox
+                  checked={border}
+                  onChange={(_value, checked) => setBorder(checked)}
+                  label={intl.formatMessage({
+                    defaultMessage: "Show card border",
+                    description: "Checkbox label that controls whether a border is shown around the widget",
+                  })}
+                />
               </div>
             </details>
           </div>
@@ -2115,88 +1740,74 @@ export function App() {
             width: 320, padding: 16, borderRadius: 12, background: "white",
             boxShadow: "0 8px 24px rgba(0,0,0,0.25)"
           }}>
-            <div style={{ fontWeight: 700, marginBottom: 8 }}>
-              <FormattedMessage
-                defaultMessage="Inserting…"
-                description="Heading shown in the loader overlay while charts are being inserted"
+            <div style={{ marginBottom: 8 }}>
+              <Title size="small">
+                <FormattedMessage
+                  defaultMessage="Inserting…"
+                  description="Heading shown in the loader overlay while charts are being inserted"
+                />
+              </Title>
+            </div>
+            <div style={{ marginBottom: 8 }}>
+              <ProgressBar
+                value={Math.round(progress)}
+                ariaLabel={intl.formatMessage({
+                  defaultMessage: "Insertion progress",
+                  description: "Accessible label for the progress bar shown while charts are being inserted",
+                })}
               />
             </div>
-            <div style={{ height: 10, background: "#eee", borderRadius: 6, overflow: "hidden", marginBottom: 8 }}>
-              <div style={{
-                height: "100%",
-                width: `${Math.round(progress)}%`,
-                background: "#6a5cff",
-                transition: "width 160ms linear"
-              }} />
-            </div>
-            <div style={{ fontSize: 12, color: "#666" }}>
+            <Text size="small" tone="secondary" tagName="div">
               <FormattedMessage
                 defaultMessage="This can take up to ~30s depending on data & network."
                 description="Helper text in the loader overlay explaining that insertion may take some time"
               />
-            </div>
+            </Text>
           </div>
         </div>
       )}
 
       {/* Nav */}
       <div style={{ height: 12 }} />
-      <div style={{ ...nav, display: "grid", gap: 8 }}>
-        <button
+      <div style={{ display: "grid", gap: 8 }}>
+        <Button
+          variant="primary"
+          stretch
           onClick={step < 2 ? next : insert}
           disabled={buttonDisabled}
-          style={{
-            ...primary,
-            width: "100%",
-            opacity: buttonDisabled ? 0.5 : 1,
-            cursor: buttonDisabled ? "not-allowed" : "pointer",
-          }}
+          loading={isInserting}
         >
           {buttonLabel}
-        </button>
-        <button
-          onClick={back}
-          disabled={step === 0 || isInserting}
-          style={{
-            ...secondary,
-            width: "100%",
-          }}
-        >
-          <FormattedMessage
-            defaultMessage="Back"
-            description="Secondary navigation button label used to go to the previous step"
-          />
-        </button>
+        </Button>
+        {step > 0 && (
+          <Button
+            variant="secondary"
+            stretch
+            onClick={back}
+            disabled={isInserting}
+          >
+            {intl.formatMessage({
+              defaultMessage: "Back",
+              description: "Secondary navigation button label used to go to the previous step",
+            })}
+          </Button>
+        )}
       </div>
       {step === 0 && (
         <div style={{ marginTop: 10, textAlign: "center" }}>
-          <button
-            type="button"
-            onClick={async () => {
-              try {
-                await requestOpenExternalUrl({
-                  url: "https://data.indianarealtors.com/canva/learn",
-                });
-              } catch (e) {
-                console.error(e);
-              }
-            }}
-            style={{
-              border: "none",
-              background: "transparent",
-              padding: 0,
-              fontSize: 12,
-              fontWeight: 700,
-              color: "#6a5cff",
-              textDecoration: "underline",
-              cursor: "pointer",
+          <Link
+            href="https://data.indianarealtors.com/canva/learn"
+            requestOpenExternalUrl={() => {
+              requestOpenExternalUrl({
+                url: "https://data.indianarealtors.com/canva/learn",
+              }).catch(console.error);
             }}
           >
             <FormattedMessage
-              defaultMessage="New here? Getting started →"
+              defaultMessage="New here? Getting started"
               description="Footer help link inviting first-time users to open the getting started guide"
             />
-          </button>
+          </Link>
         </div>
       )}
     </div>
@@ -2215,7 +1826,7 @@ function Header({ step, steps }: { step: Step; steps: readonly string[] }) {
               height: 4,
               flex: 1,
               borderRadius: 2,
-              background: i <= step ? "#6a5cff" : "#e8e8ef",
+              background: i <= step ? tokens.colorActionPrimaryBg : tokens.colorUiNeutralBg,
             }}
           />
         ))}
@@ -2227,38 +1838,14 @@ function Header({ step, steps }: { step: Step; steps: readonly string[] }) {
 function Section(props: { title: React.ReactNode; children: React.ReactNode }) {
   return (
     <div>
-      <div style={{ fontSize: 12, color: "#333", marginBottom: 12, marginTop: 12 }}>
-        {props.title}
+      <div style={{ marginBottom: 12, marginTop: 12 }}>
+        <Text size="small" variant="bold" tagName="div">{props.title}</Text>
       </div>
       {props.children}
     </div>
   );
 }
 
-function Chip({
-  label,
-  active,
-  onClick,
-}: {
-  label: React.ReactNode;
-  active?: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      style={{
-        padding: "6px 10px",
-        borderRadius: 16,
-        border: "1px solid #ddd",
-        background: active ? "#eef5ff" : "white",
-        cursor: "pointer",
-      }}
-    >
-      {label}
-    </button>
-  );
-}
 
 function List({ children }: { children: React.ReactNode }) {
   return (
@@ -2287,36 +1874,27 @@ function Row({
       style={{
         padding: 9,
         cursor: "pointer",
-        background: active ? "#f2f7ff" : (recommended ? "#fbfbff" : "white"),
-        borderBottom: "1px solid #f4f4f4",
-        borderLeft: recommended ? "3px solid #d9d6ff" : "3px solid transparent",
+        background: active ? tokens.colorActionSelectedBg : tokens.elevationSurfaceBg,
+        borderBottom: `1px solid ${tokens.colorUiNeutralBg}`,
+        borderLeft: recommended ? `3px solid ${tokens.colorActionSelectedBorder}` : "3px solid transparent",
       }}
     >
-    <div style={{ fontWeight: 700, fontSize: 12, lineHeight: 1.25 }}>
-      {title}
-    </div>
+    <Text size="small" variant="bold" tagName="div">{title}</Text>
 
     {(subtitle || recommended) && (
       <div style={{ display: "flex", gap: 8, alignItems: "baseline" }}>
         {subtitle && (
-          <div style={{ fontSize: 12, lineHeight: 1.25, color: "#666", flex: 1 }}>
-            {subtitle}
+          <div style={{ flex: 1 }}>
+            <Text size="small" tone="secondary" tagName="div">{subtitle}</Text>
           </div>
         )}
         {recommended && (
-          <div
-            style={{
-              fontSize: 11,
-              color: "#6a5cff",
-              fontWeight: 700,
-              whiteSpace: "nowrap",
-            }}
-          >
+          <Text size="xsmall" tone="secondary" tagName="div">
             <FormattedMessage
               defaultMessage="Recommended"
-              description="Badge shown next to recommended items in reusable row components"
+              description="Label shown next to recommended items in the list"
             />
-          </div>
+          </Text>
         )}
       </div>
     )}
@@ -2328,90 +1906,20 @@ function Row({
 /* ---------- Styles ---------- */
 const shell: React.CSSProperties = {
   padding: 12,
-  fontFamily: "Inter, system-ui, sans-serif",
 };
 
-const summaryBar: React.CSSProperties = {
-  border: "1px solid #eee",
-  borderRadius: 10,
-  padding: 10,
-  display: "grid",
-  gap: 8,
-  background: "white",
-};
-
-const summaryRow: React.CSSProperties = {
-  display: "flex",
-  gap: 10,
-  alignItems: "baseline",
-  justifyContent: "space-between",
-};
-
-const summaryLabel: React.CSSProperties = {
-  fontSize: 12,
-  color: "#666",
-  minWidth: 70,
-};
-
-const summaryValue: React.CSSProperties = {
-  fontSize: 12,
-  fontWeight: 700,
-  textAlign: "right",
-  overflow: "hidden",
-  textOverflow: "ellipsis",
-  whiteSpace: "nowrap",
-  maxWidth: 200,
-};
-
-const chips: React.CSSProperties = {
-  display: "flex",
-  flexWrap: "wrap",
-  gap: 8,
-};
-
-const search: React.CSSProperties = {
-  width: "100%",
-  padding: 8,
-  marginBottom: 8,
-  border: "1px solid #ddd",
-  borderRadius: 6,
-  boxSizing: "border-box",
-};
 
 const list: React.CSSProperties = {
-  border: "1px solid #eee",
+  border: `1px solid ${tokens.colorUiNeutralBg}`,
   borderRadius: 6,
-};
-
-
-const nav: React.CSSProperties = {
-  display: "flex",
-  gap: 8,
-};
-
-const primary: React.CSSProperties = {
-  flex: 1,
-  padding: 10,
-  borderRadius: 8,
-  border: "none",
-  background: "#6a5cff",
-  color: "white",
-  fontWeight: 700,
-};
-
-const secondary: React.CSSProperties = {
-  flex: 1,
-  padding: 10,
-  borderRadius: 8,
-  border: "1px solid #ddd",
-  background: "white",
-  fontWeight: 700,
 };
 
 function Empty({ children }: { children: React.ReactNode }) {
   return (
-    <div style={{ padding: 12, color: "#777", fontSize: 12, textAlign: "center" }}>
-      {children}
+    <div style={{ padding: 12 }}>
+      <Text size="small" tone="tertiary" alignment="center" tagName="div">
+        {children}
+      </Text>
     </div>
   );
 }
