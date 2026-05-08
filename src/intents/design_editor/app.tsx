@@ -981,28 +981,31 @@ export function App() {
       {(geo || selectedVizzes.length > 0) && (
         <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginBottom: 4 }}>
           {geo && (
-            <Text size="small" tagName="div">
+            <div style={{ display: "flex", gap: 4, alignItems: "baseline" }}>
               <Text size="small" tone="secondary" tagName="span">
                 <FormattedMessage defaultMessage="Market:" description="Inline summary label for the selected market" />
               </Text>
-              {" "}
               <Text size="small" variant="bold" tagName="span">{geo.name || geo.label}</Text>
-            </Text>
+            </div>
           )}
           {selectedVizzes.length > 0 && (
-            <Text size="small" tagName="div">
+            <div style={{ display: "flex", gap: 4, alignItems: "baseline" }}>
               <Text size="small" tone="secondary" tagName="span">
                 <FormattedMessage defaultMessage="Metrics:" description="Inline summary label for the selected metrics" />
               </Text>
-              {" "}
               <Text size="small" variant="bold" tagName="span">
                 {(() => {
                   const first = (selectedVizzes[0]?.title || selectedVizzes[0]?.name || selectedVizzes[0]?.label || "") as string;
                   const extra = selectedVizzes.length - 1;
-                  return first + (extra > 0 ? ` +${extra}` : "");
+                  return extra > 0
+                    ? intl.formatMessage(
+                        { defaultMessage: "{first} +{extra}", description: "Summary showing the first selected metric name and a count of additional ones" },
+                        { first, extra }
+                      )
+                    : first;
                 })()}
               </Text>
-            </Text>
+            </div>
           )}
         </div>
       )}
@@ -1022,12 +1025,9 @@ export function App() {
         ) : (
           <>
             <div style={{ width: 7, height: 7, borderRadius: "50%", background: tokens.colorUiNeutralBg, flexShrink: 0 }} />
-            <LinkButton onClick={() => void trySilentLink()} disabled={authBusy}>
-              <FormattedMessage
-                defaultMessage="Check connection"
-                description="Inline link to retry silent linking"
-              />
-            </LinkButton>
+            <Button variant="secondary" onClick={() => void trySilentLink()} disabled={authBusy}>
+              {intl.formatMessage({ defaultMessage: "Check connection", description: "Button to retry silent linking to IAR account" })}
+            </Button>
             {authError && (
               <Text tone="critical" size="small" tagName="span">{authError}</Text>
             )}
@@ -1732,13 +1732,14 @@ export function App() {
           role="status"
           aria-live="polite"
           style={{
-            position: "fixed", inset: 0, background: "rgba(0,0,0,0.35)",
+            position: "fixed", inset: 0, background: tokens.colorFeedbackOverlayBg,
             display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999
           }}
         >
           <div style={{
-            width: 320, padding: 16, borderRadius: 12, background: "white",
-            boxShadow: "0 8px 24px rgba(0,0,0,0.25)"
+            width: 320, padding: 16, borderRadius: 12,
+            background: tokens.elevationSurfaceFloatingBg,
+            boxShadow: tokens.elevationSurfaceFloatingShadow,
           }}>
             <div style={{ marginBottom: 8 }}>
               <Title size="small">
