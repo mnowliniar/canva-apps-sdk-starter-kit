@@ -5,6 +5,7 @@ import { addElementAtPoint, createRichtextRange } from "@canva/design";
 import { requestOpenExternalUrl } from "@canva/platform";
 import { auth } from "@canva/user";
 import { Accordion, AccordionItem, Button, Checkbox, Link, LinkButton, ProgressBar, Select, Text, TextInput, Title, tokens } from "@canva/app-ui-kit";
+import { GEO_TYPE_MESSAGES, TIMESPAN_MESSAGES, VIZ_MESSAGES } from "./generated/dynamic-messages";
 
 /* eslint-disable react/forbid-elements */
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -74,6 +75,7 @@ type Item = {
   title?: string;
   subtitle?: string;
   label?: string;
+  type?: string;
   protected?: boolean;
 };
 
@@ -123,6 +125,48 @@ type Step = 0 | 1 | 2;
 
 export function App() {
   const intl = useIntl();
+
+  // Translated lookups for DYNAMIC (DB-sourced) labels. The API still returns the raw
+  // English value + id; we display the Canva-translated string keyed by id, and fall back
+  // to the raw value when an id isn't in the generated catalog yet (e.g. a metric was added
+  // but the app hasn't been regenerated/resubmitted). See generated/dynamic-messages.ts.
+  const tGeoType = (value: string): string => {
+    const m = GEO_TYPE_MESSAGES[value];
+    return m ? intl.formatMessage(m) : value;
+  };
+  const tTimespanLabel = (t: Item): string => {
+    const m = TIMESPAN_MESSAGES[String(t.id)];
+    return m ? intl.formatMessage(m) : t.label || String(t.id);
+  };
+  const tVizTitle = (v: Item): string => {
+    const m = VIZ_MESSAGES[String(v.id)];
+    return m ? intl.formatMessage(m.title) : (v.title || v.name || "");
+  };
+  const tVizSubtitle = (v: Item): string => {
+    const m = VIZ_MESSAGES[String(v.id)];
+    return m?.subtitle ? intl.formatMessage(m.subtitle) : (v.subtitle || "");
+  };
+  // Geo subtitles arrive from the server pre-baked as "{type} · {n} households".
+  // Rebuild them client-side so they localize: translate the type via the catalog,
+  // format the count for the locale, and pluralize "household(s)". Fall back to the
+  // raw string if the shape is ever unexpected.
+  const tGeoSubtitle = (g: Item): string => {
+    const raw = g.subtitle || "";
+    const numMatch = raw.match(/[\d,]+/);
+    if (!g.type || !numMatch) return raw;
+    const count = Number(numMatch[0].replace(/,/g, ""));
+    if (!Number.isFinite(count)) return raw;
+    return intl.formatMessage(
+      {
+        defaultMessage:
+          "{geoType} · {count, plural, one {# household} other {# households}}",
+        description:
+          "Market list subtitle showing the geography type and its number of households",
+      },
+      { geoType: tGeoType(g.type), count },
+    );
+  };
+
   const steps = [
     intl.formatMessage({
       defaultMessage: "Pick your market",
@@ -138,9 +182,11 @@ export function App() {
     }),
   ] as const;
   // --- Auth gate ---
+  // We silently check (on boot) whether this Canva user is already linked to an IAR
+  // member account. Linking unlocks protected markets/metrics; when unlinked the app
+  // stays fully usable on public data. There is no manual link action because a
+  // cross-site session can't be established from inside the Canva app iframe.
   const [authStatus, setAuthStatus] = useState<"checking" | "linked" | "unlinked">("checking");
-  const [authBusy, setAuthBusy] = useState<boolean>(false);
-  const [authError, setAuthError] = useState<string>("");
 
   async function getCanvaHeaders(): Promise<Record<string, string>> {
     try {
@@ -158,8 +204,6 @@ export function App() {
   }
 
   async function trySilentLink() {
-    setAuthBusy(true);
-    setAuthError("");
     try {
       const headers = await getCanvaHeaders();
       if (!headers.Authorization) {
@@ -178,24 +222,10 @@ export function App() {
       });
 
       const data = await r.json().catch(() => ({}));
-      if (!r.ok) {
-        setAuthStatus("unlinked");
-        setAuthError(String(data?.detail || data?.error || `Silent link failed (${r.status})`));
-        return;
-      }
-
-      setAuthStatus(data?.linked ? "linked" : "unlinked");
-    } catch (e: any) {
+      setAuthStatus(r.ok && data?.linked ? "linked" : "unlinked");
+    } catch {
       setAuthStatus("unlinked");
-      setAuthError(String(e?.message || e));
-    } finally {
-      setAuthBusy(false);
     }
-  }
-
-  function logout() {
-    setAuthStatus("unlinked");
-    setAuthError("");
   }
   const CHART_PRESETS = [
     {
@@ -995,7 +1025,7 @@ export function App() {
               </Text>
               <Text size="small" variant="bold" tagName="span">
                 {(() => {
-                  const first = (selectedVizzes[0]?.title || selectedVizzes[0]?.name || selectedVizzes[0]?.label || "") as string;
+                  const first = selectedVizzes[0] ? tVizTitle(selectedVizzes[0]) : "";
                   const extra = selectedVizzes.length - 1;
                   return extra > 0
                     ? intl.formatMessage(
@@ -1010,30 +1040,20 @@ export function App() {
         </div>
       )}
 
-      {/* Auth status */}
-      <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6, marginBottom: 10 }}>
-        {authStatus === "linked" ? (
-          <>
-            <div style={{ width: 7, height: 7, borderRadius: "50%", background: tokens.colorContentPositiveFg, flexShrink: 0 }} />
-            <Text size="small" tone="secondary" tagName="span">
-              <FormattedMessage
-                defaultMessage="Connected to IAR"
-                description="Compact status text shown when the Canva user is linked"
-              />
-            </Text>
-          </>
-        ) : (
-          <>
-            <div style={{ width: 7, height: 7, borderRadius: "50%", background: tokens.colorUiNeutralBg, flexShrink: 0 }} />
-            <Button variant="secondary" onClick={() => void trySilentLink()} disabled={authBusy}>
-              {intl.formatMessage({ defaultMessage: "Check connection", description: "Button to retry silent linking to IAR account" })}
-            </Button>
-            {authError && (
-              <Text tone="critical" size="small" tagName="span">{authError}</Text>
-            )}
-          </>
-        )}
-      </div>
+      {/* Auth status — shown only when a member's IAR account is silently linked.
+          When unlinked, the app stays fully functional on public data and shows no
+          connection UI (no manual action is possible from inside the Canva iframe). */}
+      {authStatus === "linked" && (
+        <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6, marginBottom: 10 }}>
+          <div style={{ width: 7, height: 7, borderRadius: "50%", background: tokens.colorContentPositiveFg, flexShrink: 0 }} />
+          <Text size="small" tone="secondary" tagName="span">
+            <FormattedMessage
+              defaultMessage="Connected to IAR"
+              description="Compact status text shown when the Canva user is linked"
+            />
+          </Text>
+        </div>
+      )}
 
       {/* Saved sets shortcut — always above the step flow */}
       {step < 2 && (
@@ -1190,7 +1210,7 @@ export function App() {
                 description: "Placeholder for the geo type dropdown",
               })}
               value={geoType || undefined}
-              options={visibleGeoTypes.map((t) => ({ value: t, label: t }))}
+              options={visibleGeoTypes.map((t) => ({ value: t, label: tGeoType(t) }))}
               onChange={(value) => chooseGeoType(value as string)}
             />
           </div>
@@ -1230,7 +1250,7 @@ export function App() {
                     key={String(g.id)}
                     active={geo?.id === g.id}
                     title={g.name || g.label}
-                    subtitle={g.subtitle}
+                    subtitle={tGeoSubtitle(g)}
                     onClick={() => setGeo(g)}
                   />
                 ))}
@@ -1269,7 +1289,7 @@ export function App() {
               description: "Placeholder for the timeframe dropdown when nothing is selected",
             })}
             value={timespan ? String(timespan.id) : undefined}
-            options={timespans.map((t) => ({ value: String(t.id), label: t.label || String(t.id) }))}
+            options={timespans.map((t) => ({ value: String(t.id), label: tTimespanLabel(t) }))}
             onChange={(id) => {
               const t = timespans.find((x) => String(x.id) === id) || null;
               if (t) setTimespan(t);
@@ -1319,7 +1339,7 @@ export function App() {
               const base = !needle
                 ? vizzes
                 : vizzes.filter((v) => {
-                    const hay = `${v.title ?? ""} ${v.name ?? ""} ${v.subtitle ?? ""} ${v.label ?? ""}`.toLowerCase();
+                    const hay = `${tVizTitle(v)} ${tVizSubtitle(v)} ${v.title ?? ""} ${v.name ?? ""} ${v.subtitle ?? ""} ${v.label ?? ""}`.toLowerCase();
                     return hay.includes(needle);
                   });
 
@@ -1327,9 +1347,9 @@ export function App() {
                 const ar = isRecommendedViz(a) ? 0 : 1;
                 const br = isRecommendedViz(b) ? 0 : 1;
                 if (ar !== br) return ar - br;
-                const at = String(a.title || a.name || a.label || "").toLowerCase();
-                const bt = String(b.title || b.name || b.label || "").toLowerCase();
-                return at.localeCompare(bt);
+                const at = tVizTitle(a).toLowerCase();
+                const bt = tVizTitle(b).toLowerCase();
+                return at.localeCompare(bt, intl.locale);
               });
 
               if (!timespan) {
@@ -1384,14 +1404,14 @@ export function App() {
                   >
                     <div>
                       <Text size="small" variant="bold" tagName="div">
-                        {v.title || v.name}
+                        {tVizTitle(v)}
                       </Text>
-                      {(v.subtitle || isRecommendedViz(v)) && (
+                      {(tVizSubtitle(v) || isRecommendedViz(v)) && (
                         <div style={{ display: "flex", gap: 8, alignItems: "baseline" }}>
-                          {v.subtitle && (
+                          {tVizSubtitle(v) && (
                             <div style={{ flex: 1 }}>
                               <Text size="small" tone="secondary" tagName="div">
-                                {v.subtitle}
+                                {tVizSubtitle(v)}
                               </Text>
                             </div>
                           )}
