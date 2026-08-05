@@ -4,14 +4,15 @@ import { upload } from "@canva/asset";
 import { addElementAtPoint, createRichtextRange } from "@canva/design";
 import { requestOpenExternalUrl } from "@canva/platform";
 import { auth } from "@canva/user";
-import { Accordion, AccordionItem, Button, Checkbox, Link, LinkButton, ProgressBar, Select, Text, TextInput, Title, tokens } from "@canva/app-ui-kit";
+import { Accordion, AccordionItem, Alert, Badge, Button, Checkbox, ColorSelector, FormField, HorizontalCard, Link, ProgressBar, Rows, SegmentedControl, Select, Tab, TabList, TabPanel, TabPanels, Tabs, Text, TextInput, tokens } from "@canva/app-ui-kit";
 import { GEO_TYPE_MESSAGES, TIMESPAN_MESSAGES, VIZ_MESSAGES } from "./generated/dynamic-messages";
 
-/* eslint-disable react/forbid-elements */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable no-console */
 
 const API = "https://data.indianarealtors.com/api/canva";
+// Default accent used by the chart backend when no custom color is set.
+const DEFAULT_BRAND_COLOR = "#006E8E";
 const TEXT = `${API}/text_data`;
 const LS_TOKEN_KEY = "iar_canva_access_token_v1";
 
@@ -130,9 +131,24 @@ export function App() {
   // English value + id; we display the Canva-translated string keyed by id, and fall back
   // to the raw value when an id isn't in the generated catalog yet (e.g. a metric was added
   // but the app hasn't been regenerated/resubmitted). See generated/dynamic-messages.ts.
+  // Catalog/DB labels arrive in Title Case ("Closed Sales", "ZIP Code"); Canva
+  // requires sentence case in UI labels. Transform at display time, English only
+  // (other locales follow their own casing rules), keeping acronyms and any
+  // word containing digits untouched.
+  const sentenceCaseEn = (s: string): string => {
+    if (!intl.locale.toLowerCase().startsWith("en")) return s;
+    let first = true;
+    return s.replace(/\S+/g, (word) => {
+      const keep = /^[A-Z0-9]{2,}$/.test(word) || /\d/.test(word);
+      const out = first || keep ? word : word.toLowerCase();
+      first = false;
+      return out;
+    });
+  };
+
   const tGeoType = (value: string): string => {
     const m = GEO_TYPE_MESSAGES[value];
-    return m ? intl.formatMessage(m) : value;
+    return sentenceCaseEn(m ? intl.formatMessage(m) : value);
   };
   const tTimespanLabel = (t: Item): string => {
     const m = TIMESPAN_MESSAGES[String(t.id)];
@@ -140,7 +156,7 @@ export function App() {
   };
   const tVizTitle = (v: Item): string => {
     const m = VIZ_MESSAGES[String(v.id)];
-    return m ? intl.formatMessage(m.title) : (v.title || v.name || "");
+    return sentenceCaseEn(m ? intl.formatMessage(m.title) : (v.title || v.name || ""));
   };
   const tVizSubtitle = (v: Item): string => {
     const m = VIZ_MESSAGES[String(v.id)];
@@ -167,20 +183,6 @@ export function App() {
     );
   };
 
-  const steps = [
-    intl.formatMessage({
-      defaultMessage: "Pick your market",
-      description: "Step label for the first step in the app flow",
-    }),
-    intl.formatMessage({
-      defaultMessage: "Pick metrics",
-      description: "Step label for the second step in the app flow",
-    }),
-    intl.formatMessage({
-      defaultMessage: "Options & insert",
-      description: "Step label for the third step in the app flow",
-    }),
-  ] as const;
   // --- Auth gate ---
   // We silently check (on boot) whether this Canva user is already linked to an IAR
   // member account. Linking unlocks protected markets/metrics; when unlinked the app
@@ -252,7 +254,7 @@ export function App() {
     {
       id: "kpi-tall",
       label: intl.formatMessage({
-        defaultMessage: "Tall Card",
+        defaultMessage: "Tall card",
         description: "Preset size label for a tall KPI card widget",
       }),
       w: 200,
@@ -261,7 +263,7 @@ export function App() {
     {
       id: "kpi-wide",
       label: intl.formatMessage({
-        defaultMessage: "Wide Card",
+        defaultMessage: "Wide card",
         description: "Preset size label for a wide KPI card widget",
       }),
       w: 550,
@@ -273,7 +275,7 @@ export function App() {
     {
       id: "strip-reg",
       label: intl.formatMessage({
-        defaultMessage: "Regular Card",
+        defaultMessage: "Regular card",
         description: "Preset size label for a regular three-stat strip card widget",
       }),
       w: 650,
@@ -282,7 +284,7 @@ export function App() {
     {
       id: "strip-wide",
       label: intl.formatMessage({
-        defaultMessage: "Wide Card",
+        defaultMessage: "Wide card",
         description: "Preset size label for a wide three-stat strip card widget",
       }),
       w: 850,
@@ -298,7 +300,9 @@ export function App() {
         description: "Preset size label for a regular range plot widget",
       }),
       w: 325,
-      h: 200,
+      // 200 clipped the "Past 24 months" note + source line out of the card;
+      // 245 fits the full stack at both normal and large font sizes.
+      h: 245,
     },
   ];
 
@@ -306,7 +310,7 @@ export function App() {
     {
       id: "text-wide",
       label: intl.formatMessage({
-        defaultMessage: "Text Box",
+        defaultMessage: "Text box",
         description: "Preset size label for a text summary widget",
       }),
       w: 550,
@@ -397,93 +401,20 @@ export function App() {
     },
   ] as const;
 
-  const PREVIEW_LABELS: Record<string, string> = {
-  kpi: intl.formatMessage({
-    defaultMessage: "kpi",
-    description: "Fallback preview label for the KPI widget preview",
-  }),
-  strip: intl.formatMessage({
-    defaultMessage: "strip",
-    description: "Fallback preview label for the strip widget preview",
-  }),
-  chart: intl.formatMessage({
-    defaultMessage: "chart",
-    description: "Fallback preview label for the chart widget preview",
-  }),
-  text: intl.formatMessage({
-    defaultMessage: "text",
-    description: "Fallback preview label for the text widget preview",
-  }),
-  range: intl.formatMessage({
-    defaultMessage: "range",
-    description: "Fallback preview label for the range widget preview",
-  }),
-};
-
-  // ---- Widget preview SVGs (inline; swap paths anytime) ----
-  const PreviewChart = () => (
-    <svg width="56" height="36" viewBox="0 0 56 36" xmlns="http://www.w3.org/2000/svg">
-      <rect x="1.85" y="1.79" width="28.45" height="4.55" rx="2" ry="2" fill="#e6e7e8" />
-      <rect x="1.85" y="8.69" width="52.29" height="25.59" rx="2" ry="2" fill="#e6e7e8" />
-      <polyline
-        points="2.64 27.82 11.58 23.1 21.72 25.07 30.2 19.94 40.91 22.9 53.33 17.55"
-        fill="none"
-        stroke="#a7a9ac"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth="3"
-      />
-      <rect width="56" height="36" fill="none" />
-    </svg>
-  );
-
-  const PreviewKpi = () => (
-    <svg id="Layer_1" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" width="56" height="36" viewBox="0 0 56 36">
-      <rect x="1.85" y="1.79" width="28.45" height="4.55" rx="2" ry="2" fill="#e6e7e8"/>
-      <rect x="1.85" y="8.69" width="52.29" height="5.21" rx="2" ry="2" fill="#a7a9ac"/>
-      <polyline points="4.34 30.55 11.31 28.04 19.22 29.09 25.83 26.36 34.19 27.93 43.87 25.09" fill="none" stroke="#d1d3d4" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"/>
-      <rect width="56" height="36" fill="none"/>
-    </svg>
-  );
-
-  const PreviewText = () => (
-    <svg id="Layer_1" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" width="56" height="36" viewBox="0 0 56 36">
-      <rect x="1.85" y="6.27" width="28.45" height="4.55" rx="2" ry="2" fill="#a7a9ac"/>
-      <rect x="1.85" y="13.17" width="52.29" height="5.21" rx="2" ry="2" fill="#d1d3d4"/>
-      <rect x="1.85" y="20.45" width="52.29" height="5.21" rx="2" ry="2" fill="#d1d3d4"/>
-      <rect width="56" height="36" fill="none"/>
-    </svg>
-  );
-
-  const PreviewStrip = () => (
-    <svg id="Layer_1" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" width="56" height="36" viewBox="0 0 56 36">
-      <rect x=".73" y="7.72" width="16.6" height="19.39" rx="2" ry="2" fill="#e6e7e8"/>
-      <rect x="2.93" y="11.13" width="12.2" height="5.21" rx="2" ry="2" fill="#a7a9ac"/>
-      <rect x="19.83" y="7.72" width="16.6" height="19.39" rx="2" ry="2" fill="#e6e7e8"/>
-      <rect x="38.93" y="7.72" width="16.6" height="19.39" rx="2" ry="2" fill="#e6e7e8"/>
-      <rect width="56" height="36" fill="none"/>
-      <rect x="22.03" y="11.1" width="12.2" height="5.21" rx="2" ry="2" fill="#a7a9ac"/>
-      <rect x="41.14" y="11.13" width="12.2" height="5.21" rx="2" ry="2" fill="#a7a9ac"/>
-    </svg>
-  );
-
-  const PreviewRange = () => (
-    <svg id="Layer_1" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" width="56" height="36" viewBox="0 0 56 36">
-      <rect x="2.6" y="3.8" width="49.96" height="27.42" rx="2" ry="2" fill="#f1f2f2"/>
-      <rect x="4.66" y="6.5" width="23.47" height="5.21" rx="2" ry="2" fill="#d1d3d4"/>
-      <rect x="4.66" y="21.85" width="45.6" height="4" rx="2" ry="2" fill="#d1d3d4"/>
-      <rect width="56" height="36" fill="none"/>
-      <circle cx="38.72" cy="23.69" r="3.26" fill="#a7a9ac"/>
-    </svg>
-  );
-
-  const PREVIEW_BY_WIDGET: Record<string, React.ReactNode> = {
-    chart: <PreviewChart />,
-    kpi: <PreviewKpi />,
-    text: <PreviewText />,
-    strip: <PreviewStrip />,
-    dot_range_h: <PreviewRange />,
+  // ---- Widget preview SVGs (as data URIs for HorizontalCard thumbnails) ----
+  const PREVIEW_SVG_BY_WIDGET: Record<string, string> = {
+    chart:
+      '<svg width="56" height="36" viewBox="0 0 56 36" xmlns="http://www.w3.org/2000/svg"><rect x="1.85" y="1.79" width="28.45" height="4.55" rx="2" ry="2" fill="#e6e7e8"/><rect x="1.85" y="8.69" width="52.29" height="25.59" rx="2" ry="2" fill="#e6e7e8"/><polyline points="2.64 27.82 11.58 23.1 21.72 25.07 30.2 19.94 40.91 22.9 53.33 17.55" fill="none" stroke="#a7a9ac" stroke-linecap="round" stroke-linejoin="round" stroke-width="3"/></svg>',
+    kpi:
+      '<svg xmlns="http://www.w3.org/2000/svg" width="56" height="36" viewBox="0 0 56 36"><rect x="1.85" y="1.79" width="28.45" height="4.55" rx="2" ry="2" fill="#e6e7e8"/><rect x="1.85" y="8.69" width="52.29" height="5.21" rx="2" ry="2" fill="#a7a9ac"/><polyline points="4.34 30.55 11.31 28.04 19.22 29.09 25.83 26.36 34.19 27.93 43.87 25.09" fill="none" stroke="#d1d3d4" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>',
+    text:
+      '<svg xmlns="http://www.w3.org/2000/svg" width="56" height="36" viewBox="0 0 56 36"><rect x="1.85" y="6.27" width="28.45" height="4.55" rx="2" ry="2" fill="#a7a9ac"/><rect x="1.85" y="13.17" width="52.29" height="5.21" rx="2" ry="2" fill="#d1d3d4"/><rect x="1.85" y="20.45" width="52.29" height="5.21" rx="2" ry="2" fill="#d1d3d4"/></svg>',
+    strip:
+      '<svg xmlns="http://www.w3.org/2000/svg" width="56" height="36" viewBox="0 0 56 36"><rect x=".73" y="7.72" width="16.6" height="19.39" rx="2" ry="2" fill="#e6e7e8"/><rect x="2.93" y="11.13" width="12.2" height="5.21" rx="2" ry="2" fill="#a7a9ac"/><rect x="19.83" y="7.72" width="16.6" height="19.39" rx="2" ry="2" fill="#e6e7e8"/><rect x="38.93" y="7.72" width="16.6" height="19.39" rx="2" ry="2" fill="#e6e7e8"/><rect x="22.03" y="11.1" width="12.2" height="5.21" rx="2" ry="2" fill="#a7a9ac"/><rect x="41.14" y="11.13" width="12.2" height="5.21" rx="2" ry="2" fill="#a7a9ac"/></svg>',
+    dot_range_h:
+      '<svg xmlns="http://www.w3.org/2000/svg" width="56" height="36" viewBox="0 0 56 36"><rect x="2.6" y="3.8" width="49.96" height="27.42" rx="2" ry="2" fill="#f1f2f2"/><rect x="4.66" y="6.5" width="23.47" height="5.21" rx="2" ry="2" fill="#d1d3d4"/><rect x="4.66" y="21.85" width="45.6" height="4" rx="2" ry="2" fill="#d1d3d4"/><circle cx="38.72" cy="23.69" r="3.26" fill="#a7a9ac"/></svg>',
   };
+  const svgDataUrl = (svg: string) => `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
 
 
   const PRESET_MAP = {
@@ -520,24 +451,10 @@ export function App() {
   const isSelectedViz = (id: string | number) =>
     selectedVizzes.some((v) => String(v.id) === String(id));
 
-  function addVizToBundle(v: Item) {
-    if (isSelectedViz(v.id)) return;
-    if (selectedVizzes.length >= BUNDLE_MAX) return;
-    setSelectedVizzes((prev) => [...prev, v]);
-  }
-
-  function removeVizFromBundle(id: string | number) {
-    setSelectedVizzes((prev) => prev.filter((v) => String(v.id) !== String(id)));
-  }
-
-  function clearBundle() {
-    setSelectedVizzes([]);
-  }
-
   // ui
   const [q, setQ] = useState("");
-  const [vizQ, setVizQ] = useState("");
   const [step, setStep] = useState<Step>(0);
+  const [mainTab, setMainTab] = useState<"create" | "saved">("create");
 
   // options
   const [widget, setWidget] = useState<"kpi"|"strip"|"chart"|"dot_range_h"|"text">("kpi");
@@ -560,8 +477,6 @@ export function App() {
   const [templates, setTemplates] = useState<SavedTemplate[]>([]);
   const [activeTemplateId, setActiveTemplateId] = useState<string>("");
   const [templateName, setTemplateName] = useState<string>("");
-  const [showManageSets, setShowManageSets] = useState<boolean>(false);
-  const [savedSetsOpen, setSavedSetsOpen] = useState<boolean>(false);
   const [confirmDeleteArmed, setConfirmDeleteArmed] = useState<boolean>(false);
   const pendingVizIdsRef = useRef<string[] | null>(null);
   const pendingGeoIdRef = useRef<string | null>(null);
@@ -570,25 +485,14 @@ export function App() {
   const [lastInsertCount, setLastInsertCount] = useState<number>(0);
   const [postInsertMode, setPostInsertMode] = useState<boolean>(false);
 
-  // loader/progress
+  // loader/progress — determinate, driven by real insertion milestones
   const [isInserting, setIsInserting] = useState(false);
   const [progress, setProgress] = useState(0);
-  const progressRef = useRef<number | null>(null);
 
-  function startProgress() {
-    setProgress(8);
-    if (progressRef.current) return;
-    progressRef.current = window.setInterval(() => {
-      setProgress(p => Math.min(90, p + Math.max(0.4, (90 - p) * 0.03)));
-    }, 200);
-  }
   function bump(to: number) { setProgress(p => Math.max(p, to)); }
   function finishProgress() {
     setProgress(100);
     setTimeout(() => setIsInserting(false), 250);
-  }
-  function stopProgress() {
-    if (progressRef.current) { clearInterval(progressRef.current); progressRef.current = null; }
   }
 
   // boot
@@ -681,7 +585,6 @@ export function App() {
   const allTemplatesSorted = [...templates].sort((a, b) => (a.savedAt < b.savedAt ? 1 : -1));
 
   const activeTemplate = allTemplatesSorted.find((t) => t.id === activeTemplateId) || null;
-  const canLoadAnyTemplate = allTemplatesSorted.length > 0;
 
   // Template helpers
   function snapshotCurrentTemplate(name: string): SavedTemplate | null {
@@ -767,12 +670,12 @@ export function App() {
     // Bundle: apply viz selection once vizzes load.
     pendingVizIdsRef.current = [...t.vizIds];
 
-    setVizQ("");
     setPostInsertMode(false);
     setLastInsertCount(0);
 
     // Start on step 0 while the market resolves; the geos effect will jump to step 2.
     setStep(0);
+    setMainTab("create");
   }
 
   // choose helpers
@@ -781,7 +684,7 @@ export function App() {
     setGeo(null);
     setTimespan(null);
     setSelectedVizzes([]);
-    setVizQ("");
+    setQ("");
     setStep(0); // stay on market picker; list reloads
   }
 
@@ -823,13 +726,14 @@ export function App() {
     setIsInserting(true);
     setPostInsertMode(false);
     setLastInsertCount(0);
-    startProgress();
+    setProgress(2);
 
     try {
       // Text widget: fetch metric-driven text and insert as "nuggets" (separate text elements)
       // so users can drag/drop individual facts without copy/paste.
       if (widget === "text") {
-        bump(12);
+        // Determinate progress: fetching payloads covers 0–50%, adding elements 50–100%.
+        const fetchTotal = Math.max(1, selectedVizzes.length);
 
         // Fetch text payloads for each selected metric
         const payloads: { title: string; subtitle: string; bullets: string[] }[] = [];
@@ -839,12 +743,15 @@ export function App() {
           u.searchParams.set("geo_id", String(geo.id));
           u.searchParams.set("proptype", "all");
 
-          // progress bump per metric
-          const i = selectedVizzes.indexOf(v);
-          bump(12 + Math.round((i / Math.max(1, selectedVizzes.length)) * 40));
           const td = await jWithCanva<{ title: string; subtitle: string; bullets: string[] }>(u.toString());
           if (td) payloads.push(td);
+          bump(Math.round((payloads.length / fetchTotal) * 50));
         }
+        const elementTotal = Math.max(
+          1,
+          payloads.reduce((sum, td) => sum + 1 + (td?.bullets?.length ?? 0), 0),
+        );
+        let elementsAdded = 0;
 
         // Layout: stack items vertically with small spacing.
         // Canva will let users drag/drop these into their own templates.
@@ -874,7 +781,6 @@ export function App() {
             headerRange.appendText(td.subtitle, { fontWeight: "normal" } as any);
           }
 
-          bump(20);
           await addElementAtPoint({
             type: "richtext",
             range: headerRange,
@@ -883,6 +789,8 @@ export function App() {
             width,
             height: headerHeight,
           } as any);
+          elementsAdded += 1;
+          bump(50 + Math.round((elementsAdded / elementTotal) * 50));
 
           top += headerHeight + gap;
 
@@ -892,7 +800,6 @@ export function App() {
               const nuggetRange = createRichtextRange();
               nuggetRange.appendText(b, { fontWeight: "normal" } as any);
 
-              bump(20);
               await addElementAtPoint({
                 type: "richtext",
                 range: nuggetRange,
@@ -901,6 +808,8 @@ export function App() {
                 width,
                 height: nuggetHeight,
               } as any);
+              elementsAdded += 1;
+              bump(50 + Math.round((elementsAdded / elementTotal) * 50));
 
               top += nuggetHeight + gap;
             }
@@ -917,6 +826,10 @@ export function App() {
       }
 
       // Bundle insert: for each selected metric, fetch a PNG and insert it as an image element.
+      // Determinate progress: each chart has 3 real milestones (metadata, PNG, added to design).
+      const milestoneTotal = selectedVizzes.length * 3;
+      const chartPct = (milestonesDone: number) =>
+        Math.round((milestonesDone / milestoneTotal) * 100);
       for (let i = 0; i < selectedVizzes.length; i++) {
         const v = selectedVizzes[i];
 
@@ -934,15 +847,13 @@ export function App() {
         const hex = normalizeHex(color);
         if (hex) meta.searchParams.set("color", hex);
 
-        // progress bump per metric
-        bump(12 + Math.round((i / Math.max(1, selectedVizzes.length)) * 35));
         const jd = await jWithCanva<{ png_url: string }>(meta.toString());
         if (!jd?.png_url) throw new Error("chart_data missing png_url");
+        bump(chartPct(i * 3 + 1));
 
-        bump(15 + Math.round((i / Math.max(1, selectedVizzes.length)) * 40));
         const dataUrl = await fetchPngAsDataUrl(jd.png_url);
+        bump(chartPct(i * 3 + 2));
 
-        bump(80);
         const asset = await upload({
           type: "image",
           mimeType: "image/png",
@@ -951,7 +862,6 @@ export function App() {
           aiDisclosure: "none",
         });
 
-        bump(90);
         await addElementAtPoint({
           type: "image",
           ref: asset.ref,
@@ -968,6 +878,7 @@ export function App() {
           width: activePreset!.w,
           height: adjustedHeight(activePreset!.h),
         } as any);
+        bump(chartPct(i * 3 + 3));
       }
       setLastInsertCount(selectedVizzes.length);
       setPostInsertMode(true);
@@ -978,8 +889,6 @@ export function App() {
       setLastInsertCount(0);
       setProgress(100);
       setTimeout(() => setIsInserting(false), 600);
-    } finally {
-      stopProgress();
     }
   }
   const isLastStep = step === 2;
@@ -994,20 +903,36 @@ export function App() {
     : (isInserting
         ? intl.formatMessage(
             {
-              defaultMessage: "Inserting… {progress}%",
-              description: "Primary button label shown while charts are being inserted into Canva",
+              defaultMessage: "Adding… {progress}%",
+              description: "Primary button label shown while charts are being added to the design",
             },
             { progress: Math.round(progress) },
           )
         : intl.formatMessage({
-            defaultMessage: "Insert",
-            description: "Primary button label used to insert the selected charts into Canva",
+            defaultMessage: "Add to design",
+            description: "Primary button label used to add the selected charts to the Canva design",
           }));
   return (
     <div style={shell}>
-      <Header step={step} steps={steps} />
-      <div style={{ height: 8 }} />
-
+      {/* Fully controlled tabs: each Tab/TabPanel gets active/onClick — in this
+          UI Kit version a Tabs-level activeId alone swallows clicks silently. */}
+      <Tabs>
+        <TabList align="stretch">
+          <Tab id="create" active={mainTab === "create"} onClick={() => setMainTab("create")}>
+            {intl.formatMessage({
+              defaultMessage: "Create",
+              description: "Tab label for the main flow where the user builds and adds charts",
+            })}
+          </Tab>
+          <Tab id="saved" active={mainTab === "saved"} onClick={() => setMainTab("saved")}>
+            {intl.formatMessage({
+              defaultMessage: "Saved",
+              description: "Tab label for the list of saved sets",
+            })}
+          </Tab>
+        </TabList>
+        <TabPanels>
+          <TabPanel id="create" active={mainTab === "create"}>
       {(geo || selectedVizzes.length > 0) && (
         <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginBottom: 4 }}>
           {geo && (
@@ -1055,215 +980,77 @@ export function App() {
         </div>
       )}
 
-      {/* Saved sets shortcut — always above the step flow */}
-      {step < 2 && (
-        <div style={{ marginBottom: 12 }}>
-          <Accordion dividers={false}>
-            <AccordionItem
-              title={intl.formatMessage({
-                defaultMessage: "Saved sets",
-                description: "Toggle label for the collapsible saved sets section",
-              })}
-              expanded={savedSetsOpen}
-              onClick={() => {
-                setSavedSetsOpen((v) => !v);
-                setShowManageSets(false);
-                setConfirmDeleteArmed(false);
-              }}
-            >
-              <div style={{ display: "grid", gap: 10 }}>
-                <div style={{ display: "flex", gap: 8, alignItems: "stretch" }}>
-                  <Select
-                    stretch
-                    placeholder={intl.formatMessage({
-                      defaultMessage: "Load a saved set…",
-                      description: "Placeholder option in the saved sets dropdown before a saved set is selected",
-                    })}
-                    value={activeTemplateId || undefined}
-                    options={allTemplatesSorted.map((t) => ({ value: t.id, label: t.name }))}
-                    onChange={(id) => setActiveTemplateId(id as string)}
-                    disabled={!canLoadAnyTemplate}
-                  />
-                  <Button
-                    variant="secondary"
-                    onClick={() => {
-                      const t = allTemplatesSorted.find((x) => x.id === activeTemplateId);
-                      if (t) loadTemplate(t);
-                    }}
-                    disabled={!activeTemplateId}
-                  >
-                    {intl.formatMessage({
-                      defaultMessage: "Load",
-                      description: "Button label to load the currently selected saved set",
-                    })}
-                  </Button>
-                </div>
-
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
-                  <Text size="xsmall" tone="tertiary" tagName="div">
-                    <FormattedMessage
-                      defaultMessage="Saved sets are stored on this device."
-                      description="Helper text explaining that saved sets are stored locally on the current device"
-                    />
-                  </Text>
-                  <LinkButton
-                    onClick={() => {
-                      setShowManageSets((s) => !s);
-                      setConfirmDeleteArmed(false);
-                    }}
-                  >
-                    <FormattedMessage
-                      defaultMessage="Manage"
-                      description="Button label that opens the panel for managing saved sets"
-                    />
-                  </LinkButton>
-                </div>
-
-                {showManageSets && (
-                  <div style={{ display: "grid", gap: 8 }}>
-                    <Text size="small" variant="bold" tagName="div">
-                      <FormattedMessage
-                        defaultMessage="Manage saved sets"
-                        description="Heading for the panel where the user can manage saved sets"
-                      />
-                    </Text>
-
-                    <Text size="small" tone="secondary" tagName="div">
-                      {activeTemplate ? (
-                        <>
-                          <FormattedMessage
-                            defaultMessage="Selected:"
-                            description="Label shown before the name of the currently selected saved set in the manage panel"
-                          />{" "}
-                          <Text size="small" variant="bold" tagName="span">
-                            {activeTemplate.name}
-                          </Text>
-                        </>
-                      ) : (
-                        <FormattedMessage
-                          defaultMessage="Select a saved set above to manage it."
-                          description="Instruction shown in the manage saved sets panel when no saved set is selected"
-                        />
-                      )}
-                    </Text>
-
-                    <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", flexWrap: "wrap" }}>
-                      <Button
-                        variant="secondary"
-                        onClick={() => {
-                          if (!activeTemplate) return;
-                          if (!confirmDeleteArmed) {
-                            armDeleteOnce();
-                            return;
-                          }
-                          deleteActiveTemplate();
-                          setConfirmDeleteArmed(false);
-                        }}
-                        disabled={!activeTemplate}
-                      >
-                        {confirmDeleteArmed
-                          ? intl.formatMessage({
-                              defaultMessage: "Click again to delete",
-                              description: "Delete confirmation button text shown after the first click on delete saved set",
-                            })
-                          : intl.formatMessage({
-                              defaultMessage: "Delete saved set",
-                              description: "Button label to delete the currently selected saved set",
-                            })}
-                      </Button>
-                    </div>
-
-                    <div style={{ display: "flex", justifyContent: "flex-end" }}>
-                      <LinkButton
-                        onClick={() => {
-                          setShowManageSets(false);
-                          setConfirmDeleteArmed(false);
-                        }}
-                      >
-                        <FormattedMessage
-                          defaultMessage="Done"
-                          description="Button label to close the manage saved sets panel"
-                        />
-                      </LinkButton>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </AccordionItem>
-          </Accordion>
-        </div>
-      )}
-
       {/* Step 0: Market picker (type + search + list) */}
       {step === 0 && (
         <Section
+          badge="1"
+          badgeLabel={intl.formatMessage({
+            defaultMessage: "Step 1 of 3",
+            description: "Accessible label for the step one indicator badge",
+          })}
           title={intl.formatMessage({
             defaultMessage: "Pick your market",
             description: "Section title for the first step where the user selects a market",
           })}
         >
           <div style={{ marginTop: 4, marginBottom: 8 }}>
-            <Select
-              stretch
-              placeholder={intl.formatMessage({
-                defaultMessage: "Choose a type",
-                description: "Placeholder for the geo type dropdown",
+            <FormField
+              label={intl.formatMessage({
+                defaultMessage: "Market type",
+                description: "Label for the geo type dropdown",
               })}
-              value={geoType || undefined}
-              options={visibleGeoTypes.map((t) => ({ value: t, label: tGeoType(t) }))}
-              onChange={(value) => chooseGeoType(value as string)}
+              control={(props) => (
+                <Select
+                  {...props}
+                  stretch
+                  placeholder={intl.formatMessage({
+                    defaultMessage: "Choose a type",
+                    description: "Placeholder for the geo type dropdown",
+                  })}
+                  value={geoType || undefined}
+                  options={visibleGeoTypes.map((t) => ({ value: t, label: tGeoType(t) }))}
+                  onChange={(value) => chooseGeoType(value as string)}
+                />
+              )}
             />
           </div>
 
           {geoType && (
-            <>
-              <div style={{ marginTop: 8, marginBottom: 8 }}>
-                <TextInput
-                  type="search"
+            <FormField
+              label={intl.formatMessage({
+                defaultMessage: "Market",
+                description: "Label for the searchable market dropdown",
+              })}
+              control={(props) => (
+                <Select
+                  {...props}
+                  stretch
                   placeholder={intl.formatMessage({
-                    defaultMessage: "Search markets",
-                    description: "Placeholder text in the market search input",
+                    defaultMessage: "Choose a market",
+                    description: "Placeholder for the market dropdown before a market is selected",
                   })}
-                  value={q}
-                  onChange={(value) => setQ(value)}
+                  searchable={{
+                    // The server filters via the q param; show its results as-is.
+                    filterFn: (_query, options) => options,
+                    onInputChange: (query) => setQ(query),
+                    inputPlaceholder: intl.formatMessage({
+                      defaultMessage: "Search markets",
+                      description: "Placeholder text in the market search input",
+                    }),
+                  }}
+                  value={geo ? String(geo.id) : undefined}
+                  options={geos.map((g) => ({
+                    value: String(g.id),
+                    label: g.name || g.label || String(g.id),
+                    description: tGeoSubtitle(g),
+                  }))}
+                  onChange={(id) => {
+                    const hit = geos.find((g) => String(g.id) === String(id)) || null;
+                    if (hit) setGeo(hit);
+                  }}
                 />
-              </div>
-
-              {geo && (
-                <div style={{ margin: "6px 0 4px" }}>
-                  <Text size="small" tagName="div">
-                    <Text size="small" variant="bold" tagName="span">
-                      <FormattedMessage
-                        defaultMessage="Selected market:"
-                        description="Label shown before the currently selected market name"
-                      />
-                    </Text>
-                    {/* eslint-disable-next-line formatjs/no-literal-string-in-jsx */}
-                    {" "}{geo.name || geo.label}
-                  </Text>
-                </div>
               )}
-
-              <List>
-                {geos.map((g) => (
-                  <Row
-                    key={String(g.id)}
-                    active={geo?.id === g.id}
-                    title={g.name || g.label}
-                    subtitle={tGeoSubtitle(g)}
-                    onClick={() => setGeo(g)}
-                  />
-                ))}
-                {geos.length === 0 && (
-                  <Empty>
-                    <FormattedMessage
-                      defaultMessage="Start typing to filter…"
-                      description="Empty-state message shown when the user should type to filter the market list"
-                    />
-                  </Empty>
-                )}
-              </List>
-            </>
+            />
           )}
         </Section>
       )}
@@ -1271,253 +1058,184 @@ export function App() {
       {/* Step 1: Timespan + Viz (combined) */}
       {step === 1 && (
         <Section
+          badge="2"
+          badgeLabel={intl.formatMessage({
+            defaultMessage: "Step 2 of 3",
+            description: "Accessible label for the step two indicator badge",
+          })}
           title={intl.formatMessage({
             defaultMessage: "Pick a timeframe and metrics",
             description: "Section title for the second step where the user chooses a timeframe and metrics",
           })}
         >
-          <div style={{ marginTop:4, marginBottom: 8 }}>
-            <FormattedMessage
-              defaultMessage="Timeframe"
-              description="Label above the dropdown used to select the metric timeframe"
-            />
-          </div>
-          <Select
-            stretch
-            placeholder={intl.formatMessage({
-              defaultMessage: "Select a timeframe",
-              description: "Placeholder for the timeframe dropdown when nothing is selected",
-            })}
-            value={timespan ? String(timespan.id) : undefined}
-            options={timespans.map((t) => ({ value: String(t.id), label: tTimespanLabel(t) }))}
-            onChange={(id) => {
-              const t = timespans.find((x) => String(x.id) === id) || null;
-              if (t) setTimespan(t);
-            }}
-          />
-
-          <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginTop:4, marginBottom: 8 }}>
-            <Text size="small" variant="bold" tagName="div">
-              <FormattedMessage
-                defaultMessage="Metrics"
-                description="Label above the list of metrics in step two"
-              />
-            </Text>
-            <Text size="small" tone={selectedVizzes.length >= BUNDLE_MAX ? "primary" : "secondary"} tagName="div">
-              {intl.formatMessage(
-                {
-                  defaultMessage: "Bundle ({count}/{max})",
-                  description: "Label showing how many metrics are currently selected out of the maximum allowed",
-                },
-                { count: selectedVizzes.length, max: BUNDLE_MAX },
-              )}
-            </Text>
-          </div>
-
-
-          <div style={{ marginBottom: 8 }}>
-            <TextInput
-              type="search"
-              placeholder={selectedVizzes.length >= BUNDLE_MAX
-                ? intl.formatMessage({
-                    defaultMessage: "Bundle full (3)",
-                    description: "Placeholder shown in the metric search input when the user has already selected the maximum number of metrics",
-                  })
-                : intl.formatMessage({
-                    defaultMessage: "Search metrics",
-                    description: "Placeholder text in the metric search input",
+          <div style={{ marginTop: 4 }}>
+            <FormField
+              label={intl.formatMessage({
+                defaultMessage: "Timeframe",
+                description: "Label above the dropdown used to select the metric timeframe",
+              })}
+              control={(props) => (
+                <Select
+                  {...props}
+                  stretch
+                  placeholder={intl.formatMessage({
+                    defaultMessage: "Select a timeframe",
+                    description: "Placeholder for the timeframe dropdown when nothing is selected",
                   })}
-              value={vizQ}
-              onChange={(value) => setVizQ(value)}
-              disabled={!timespan}
+                  value={timespan ? String(timespan.id) : undefined}
+                  options={timespans.map((t) => ({ value: String(t.id), label: tTimespanLabel(t) }))}
+                  onChange={(id) => {
+                    const t = timespans.find((x) => String(x.id) === id) || null;
+                    if (t) setTimespan(t);
+                  }}
+                />
+              )}
             />
           </div>
 
-          <List>
-            {(() => {
-              const needle = vizQ.trim().toLowerCase();
-              const base = !needle
-                ? vizzes
-                : vizzes.filter((v) => {
-                    const hay = `${tVizTitle(v)} ${tVizSubtitle(v)} ${v.title ?? ""} ${v.name ?? ""} ${v.subtitle ?? ""} ${v.label ?? ""}`.toLowerCase();
-                    return hay.includes(needle);
-                  });
-
-              const filtered = [...base].sort((a, b) => {
-                const ar = isRecommendedViz(a) ? 0 : 1;
-                const br = isRecommendedViz(b) ? 0 : 1;
-                if (ar !== br) return ar - br;
-                const at = tVizTitle(a).toLowerCase();
-                const bt = tVizTitle(b).toLowerCase();
-                return at.localeCompare(bt, intl.locale);
-              });
-
-              if (!timespan) {
-                return (
-                  <Empty>
-                    <FormattedMessage
-                      defaultMessage="Choose a timeframe to load metrics"
-                      description="Empty-state message shown before the user selects a timeframe"
-                    />
-                  </Empty>
-                );
+          <div style={{ marginTop: 8 }}>
+            <FormField
+              label={intl.formatMessage({
+                defaultMessage: "Metrics",
+                description: "Label above the metric multi-select in step two",
+              })}
+              description={
+                !timespan
+                  ? intl.formatMessage({
+                      defaultMessage: "Choose a timeframe to load metrics.",
+                      description: "Helper text shown before the user selects a timeframe",
+                    })
+                  : vizzes.length === 0
+                    ? intl.formatMessage({
+                        defaultMessage: "No metrics found for this timeframe.",
+                        description: "Helper text shown when no metrics are available for the selected timeframe",
+                      })
+                    : intl.formatMessage(
+                        {
+                          defaultMessage: "Choose up to {max}. Selected: {count} of {max}.",
+                          description: "Helper text showing how many metrics are selected out of the maximum allowed",
+                        },
+                        { count: selectedVizzes.length, max: BUNDLE_MAX },
+                      )
               }
-              if (vizzes.length === 0) {
-                return (
-                  <Empty>
-                    <FormattedMessage
-                      defaultMessage="No metrics found for this timeframe"
-                      description="Empty-state message shown when no metrics are available for the selected timeframe"
-                    />
-                  </Empty>
+              control={(props) => {
+                const sorted = [...vizzes].sort((a, b) =>
+                  tVizTitle(a).toLowerCase().localeCompare(tVizTitle(b).toLowerCase(), intl.locale),
                 );
-              }
-              if (filtered.length === 0) {
+                const toOption = (v: Item) => ({
+                  value: String(v.id),
+                  label: tVizTitle(v),
+                  description: tVizSubtitle(v) || undefined,
+                  disabled: !isSelectedViz(v.id) && selectedVizzes.length >= BUNDLE_MAX,
+                });
+                const recommended = sorted.filter(isRecommendedViz).map(toOption);
+                const others = sorted.filter((v) => !isRecommendedViz(v)).map(toOption);
                 return (
-                  <Empty>
-                    <FormattedMessage
-                      defaultMessage="No matches"
-                      description="Empty-state message shown when no metrics match the search term"
-                    />
-                  </Empty>
-                );
-              }
-
-              return filtered.map((v) => {
-                const selected = isSelectedViz(v.id);
-                const disabledAdd = !selected && selectedVizzes.length >= BUNDLE_MAX;
-
-                return (
-                  <div
-                    key={String(v.id)}
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns: "1fr auto",
-                      gap: 10,
-                      alignItems: "center",
-                      padding: 9,
-                      background: selected ? tokens.colorActionSelectedBg : tokens.elevationSurfaceBg,
-                      borderBottom: `1px solid ${tokens.colorUiNeutralBg}`,
-                      borderLeft: isRecommendedViz(v) ? `3px solid ${tokens.colorActionSelectedBorder}` : "3px solid transparent",
-                      cursor: "default",
+                  <Select
+                    {...props}
+                    stretch
+                    type="multi"
+                    searchable
+                    disabled={!timespan || vizzes.length === 0}
+                    placeholder={intl.formatMessage({
+                      defaultMessage: "Choose metrics",
+                      description: "Placeholder for the metric multi-select before any metric is selected",
+                    })}
+                    value={selectedVizzes.map((v) => String(v.id))}
+                    options={[
+                      ...(recommended.length
+                        ? [
+                            {
+                              label: intl.formatMessage({
+                                defaultMessage: "Recommended",
+                                description: "Group label for recommended metrics in the metric dropdown",
+                              }),
+                              options: recommended,
+                            },
+                          ]
+                        : []),
+                      {
+                        label: intl.formatMessage({
+                          defaultMessage: "All metrics",
+                          description: "Group label for the remaining metrics in the metric dropdown",
+                        }),
+                        options: others,
+                      },
+                    ]}
+                    onChange={(values) => {
+                      const ids = (values as string[]).slice(0, BUNDLE_MAX);
+                      setSelectedVizzes(
+                        ids
+                          .map((id) => vizzes.find((v) => String(v.id) === id))
+                          .filter((v): v is Item => Boolean(v)),
+                      );
                     }}
-                  >
-                    <div>
-                      <Text size="small" variant="bold" tagName="div">
-                        {tVizTitle(v)}
-                      </Text>
-                      {(tVizSubtitle(v) || isRecommendedViz(v)) && (
-                        <div style={{ display: "flex", gap: 8, alignItems: "baseline" }}>
-                          {tVizSubtitle(v) && (
-                            <div style={{ flex: 1 }}>
-                              <Text size="small" tone="secondary" tagName="div">
-                                {tVizSubtitle(v)}
-                              </Text>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-
-                    <Button
-                      variant="secondary"
-                      selected={selected}
-                      onClick={() => {
-                        if (selected) removeVizFromBundle(v.id);
-                        else addVizToBundle(v);
-                      }}
-                      disabled={disabledAdd}
-                    >
-                      {selected
-                        ? intl.formatMessage({
-                            defaultMessage: "Remove",
-                            description: "Button label used to remove a metric from the selected bundle",
-                          })
-                        : intl.formatMessage({
-                            defaultMessage: "Add",
-                            description: "Button label used to add a metric to the selected bundle",
-                          })}
-                    </Button>
-                  </div>
+                  />
                 );
-              });
-            })()}
-          </List>
+              }}
+            />
+          </div>
         </Section>
       )}
 
       {/* Step 2: Options & insert */}
       {step === 2 && (
         <Section
+          badge="3"
+          badgeLabel={intl.formatMessage({
+            defaultMessage: "Step 3 of 3",
+            description: "Accessible label for the step three indicator badge",
+          })}
           title={intl.formatMessage({
             defaultMessage: "Options & insert",
             description: "Section title for the third step where the user chooses widget options and inserts charts",
           })}
         >
-          {/* Post-insert actions (save/export after you insert) */}
+          {/* Post-insert: focused view — success alert + next actions only */}
           {postInsertMode && (
-            <div style={{
-              border: `1px solid ${tokens.colorActionSecondaryBorder}`,
-              borderRadius: 12,
-              padding: 12,
-              background: tokens.elevationSurfaceBg,
-              marginBottom: 14,
-              display: "grid",
-              gap: 10,
-            }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 10 }}>
-                <Text size="small" variant="bold" tagName="div">
-                  {intl.formatMessage(
-                    {
-                      defaultMessage: "Inserted {count} {itemLabel}",
-                      description: "Confirmation message shown after charts are inserted into Canva",
-                    },
-                    {
-                      count: lastInsertCount,
-                      itemLabel:
-                        lastInsertCount === 1
-                          ? intl.formatMessage({
-                              defaultMessage: "card",
-                              description: "Singular noun used in the post-insert confirmation message",
-                            })
-                          : intl.formatMessage({
-                              defaultMessage: "cards",
-                              description: "Plural noun used in the post-insert confirmation message",
-                            }),
-                    },
-                  )}
-                </Text>
-                <LinkButton
-                  onClick={() => {
+            <div style={{ marginBottom: 14 }}>
+              <Rows spacing="2u">
+                <Alert
+                  tone="positive"
+                  onDismiss={() => {
                     setPostInsertMode(false);
                     setLastInsertCount(0);
                   }}
                 >
-                  <FormattedMessage
-                    defaultMessage="Dismiss"
-                    description="Button label that closes the post-insert confirmation panel"
-                  />
-                </LinkButton>
-              </div>
+                  {intl.formatMessage(
+                    {
+                      defaultMessage:
+                        "Added {count, plural, one {# card} other {# cards}} to your design.",
+                      description: "Success message shown after charts are added to the Canva design",
+                    },
+                    { count: lastInsertCount },
+                  )}
+                </Alert>
 
-              <Text size="small" tone="secondary" tagName="div">
-                <FormattedMessage
-                  defaultMessage="Save this bundle so you can load it next time and skip setup."
-                  description="Helper text encouraging the user to save the current bundle after insertion"
-                />
-              </Text>
-
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                <TextInput
-                  placeholder={intl.formatMessage({
-                    defaultMessage: "Name this saved set",
-                    description: "Placeholder text in the input used to name a saved set after insertion",
+                <FormField
+                  label={intl.formatMessage({
+                    defaultMessage: "Save this set",
+                    description: "Label for the input used to name a saved set after insertion",
                   })}
-                  value={templateName}
-                  onChange={(value) => setTemplateName(value)}
+                  description={intl.formatMessage({
+                    defaultMessage: "Load it next time and skip setup.",
+                    description: "Helper text encouraging the user to save the current bundle after insertion",
+                  })}
+                  control={(props) => (
+                    <TextInput
+                      {...props}
+                      placeholder={intl.formatMessage({
+                        defaultMessage: "Name this saved set",
+                        description: "Placeholder text in the input used to name a saved set after insertion",
+                      })}
+                      value={templateName}
+                      onChange={(value) => setTemplateName(value)}
+                    />
+                  )}
                 />
                 <Button
                   variant="secondary"
+                  stretch
                   onClick={saveNewTemplate}
                   disabled={!geo || !timespan || selectedVizzes.length === 0}
                 >
@@ -1526,139 +1244,110 @@ export function App() {
                     description: "Button label used to save the current bundle as a saved set",
                   })}
                 </Button>
-              </div>
 
-              {/* New button: Generate AI caption */}
-              <Button
-                variant="secondary"
-                stretch
-                onClick={() => {
-                  if (!geo || selectedVizzes.length === 0) return;
-                  generateAndInsertCaption({
-                    geo_id: geo.id,
-                    viz_id: selectedVizzes[0]!.id,
-                    proptype,
-                  });
-                }}
-                disabled={!geo || selectedVizzes.length === 0}
-              >
-                {intl.formatMessage({
-                  defaultMessage: "Generate AI caption",
-                  description: "Button label used to generate and insert an AI-written caption for the selected metric",
-                })}
-              </Button>
+                <Button
+                  variant="secondary"
+                  stretch
+                  onClick={() => {
+                    if (!geo || selectedVizzes.length === 0) return;
+                    generateAndInsertCaption({
+                      geo_id: geo.id,
+                      viz_id: selectedVizzes[0]!.id,
+                      proptype,
+                    });
+                  }}
+                  disabled={!geo || selectedVizzes.length === 0}
+                >
+                  {intl.formatMessage({
+                    defaultMessage: "Generate AI caption",
+                    description: "Button label used to generate and insert an AI-written caption for the selected metric",
+                  })}
+                </Button>
 
-              <Button
-                variant="secondary"
-                stretch
-                onClick={() => {
-                  setPostInsertMode(false);
-                  setLastInsertCount(0);
-                  setStep(0);
-                }}
-              >
-                {intl.formatMessage({
-                  defaultMessage: "Start over",
-                  description: "Button label that returns the user to the beginning of the setup flow after insertion",
-                })}
-              </Button>
-
+                <Button
+                  variant="secondary"
+                  stretch
+                  onClick={() => {
+                    setPostInsertMode(false);
+                    setLastInsertCount(0);
+                    setStep(0);
+                  }}
+                >
+                  {intl.formatMessage({
+                    defaultMessage: "Start over",
+                    description: "Button label that returns the user to the beginning of the setup flow after insertion",
+                  })}
+                </Button>
+              </Rows>
             </div>
           )}
+          {!postInsertMode && (
           <div style={{ marginBottom: 12 }}>
             <div>
               <div style={{ marginBottom: 8 }}>
-                <Text size="small" variant="bold" tagName="div">
+                <Text variant="bold" tagName="div">
                   <FormattedMessage
                     defaultMessage="Choose widget"
                     description="Heading above the widget selection cards in step three"
                   />
                 </Text>
               </div>
-              <div style={{ display: "grid", gap: 10 }}>
+              <Rows spacing="1u">
                 {WIDGETS.map((w) => {
                   const active = widget === w.id;
                   return (
-                    <button
+                    // Selection ring: HorizontalCard has no selected prop, so draw the
+                    // purple border highlight (per design review) around the active card.
+                    <div
                       key={w.id}
-                      onClick={() => setWidget(w.id as any)}
                       style={{
-                        textAlign: "left",
-                        padding: 10,
-                        borderRadius: 12,
-                        border: active ? `1px solid ${tokens.colorActionSelectedBorder}` : `1px solid ${tokens.colorActionSecondaryBorder}`,
-                        background: active ? tokens.colorActionSelectedBg : tokens.elevationSurfaceBg,
-                        cursor: "pointer",
-                        display: "grid",
-                        gridTemplateColumns: "64px 1fr",
-                        gap: 10,
-                        alignItems: "center",
+                        borderRadius: 8,
+                        boxShadow: active ? `0 0 0 2px ${tokens.colorActionSelectedBorder}` : "none",
                       }}
                     >
-                      {/* Widget preview SVG */}
-                      <div
-                        style={{
-                          width: 64,
-                          height: 44,
-                          borderRadius: 10,
-                          background: tokens.colorUiNeutralBg,
-                          border: `1px solid ${tokens.colorActionSecondaryBorder}`,
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          overflow: "hidden",
+                      <HorizontalCard
+                        title={w.label}
+                        description={w.desc}
+                        ariaLabel={w.label}
+                        thumbnail={{
+                          url: svgDataUrl(PREVIEW_SVG_BY_WIDGET[w.id] ?? PREVIEW_SVG_BY_WIDGET.chart!),
+                          alt: w.label,
                         }}
-                        aria-hidden="true"
-                      >
-                        {PREVIEW_BY_WIDGET[w.id] ?? (
-                          <svg width="56" height="36" viewBox="0 0 56 36" xmlns="http://www.w3.org/2000/svg">
-                            <rect x="1" y="1" width="54" height="34" rx="6" fill="#f7f7f7" stroke="#d9d9d9" />
-                            <text x="28" y="21" textAnchor="middle" fontSize="9" fill="#9a9a9a" fontFamily="Inter, system-ui, sans-serif">
-                            {PREVIEW_LABELS[w.preview] ?? w.preview}
-                            </text>
-                          </svg>
-                        )}
-                      </div>
-
-                      <div style={{ display: "grid", gap: 2 }}>
-                        <Text size="small" variant="bold" tagName="div">{w.label}</Text>
-                        <Text size="small" tone="secondary" tagName="div">{w.desc}</Text>
-                      </div>
-                    </button>
+                        onClick={() => setWidget(w.id as any)}
+                      />
+                    </div>
                   );
                 })}
-              </div>
+              </Rows>
             </div>
-            <div style={{ margin: "12px 0 6px" }}>
-              <Text size="small" variant="bold" tagName="div">
-                <FormattedMessage
-                  defaultMessage="Size"
-                  description="Heading above the preset size buttons for the selected widget"
+            {/* Size — hidden entirely when the widget only offers one preset */}
+            {presetSet.length > 1 && (
+              <div style={{ margin: "12px 0 6px" }}>
+                <FormField
+                  label={intl.formatMessage({
+                    defaultMessage: "Size",
+                    description: "Label above the preset size selector for the selected widget",
+                  })}
+                  control={({ id }: { id: string }) => (
+                    <SegmentedControl
+                      id={id}
+                      options={presetSet.map((p) => ({ value: p.id, label: p.label }))}
+                      value={presetId}
+                      onChange={(value) => setPresetId(value)}
+                    />
+                  )}
                 />
-              </Text>
-            </div>
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              {presetSet.map(p => (
-                <Button
-                  key={p.id}
-                  variant="tertiary"
-                  selected={presetId === p.id}
-                  onClick={() => setPresetId(p.id)}
-                >
-                  {p.label}
-                </Button>
-              ))}
-            </div>
-            <details style={{ marginTop: 10 }}>
-              <summary style={{ cursor: "pointer", userSelect: "none" }}>
-                <Text variant="bold" tagName="span">
-                  <FormattedMessage
-                    defaultMessage="Options"
-                    description="Summary label for the collapsible widget options panel"
-                  />
-                </Text>
-              </summary>
-              <div style={{ marginTop: 10, display: "grid", gap: 8 }}>
+              </div>
+            )}
+            <div style={{ marginTop: 10 }}>
+            <Accordion>
+              <AccordionItem
+                title={intl.formatMessage({
+                  defaultMessage: "Options",
+                  description: "Title of the collapsible widget options panel",
+                })}
+              >
+              <div style={{ display: "grid", gap: 8 }}>
                 {(widget === "chart" || widget === "strip") && (
                   <Checkbox
                     checked={showTitle}
@@ -1669,59 +1358,52 @@ export function App() {
                     })}
                   />
                 )}
-                <div style={{ display: "grid", gap: 4 }}>
-                  <Text size="small" tagName="span">
-                    <FormattedMessage
-                      defaultMessage="Brand color (hex)"
-                      description="Label for the input where the user can enter a custom hex brand color"
+                <FormField
+                  label={intl.formatMessage({
+                    defaultMessage: "Brand color",
+                    description: "Label for the swatch that opens the brand color picker flyout",
+                  })}
+                  description={intl.formatMessage({
+                    defaultMessage: "Applied to charts and accents.",
+                    description: "Helper text under the brand color swatch",
+                  })}
+                  control={() => (
+                    <ColorSelector
+                      color={normalizeHex(color) || DEFAULT_BRAND_COLOR}
+                      onChange={(value) => setColor(value)}
+                      onDeleteColor={color ? () => setColor("") : undefined}
                     />
-                  </Text>
-                  <TextInput
-                    placeholder={intl.formatMessage({
-                      defaultMessage: "#006E8E",
-                      description: "Placeholder example shown in the custom brand color hex input",
-                    })}
-                    value={color}
-                    onChange={(value) => setColor(value)}
-                    error={normalizeHex(color) === "" && color.trim() !== ""}
-                  />
-                  {normalizeHex(color) === "" && color.trim() !== "" && (
-                    <Text tone="critical" size="small" tagName="span">
-                      <FormattedMessage
-                        defaultMessage="Enter a valid hex (e.g. #006E8E)"
-                        description="Validation message shown when the user enters an invalid hex color"
-                      />
-                    </Text>
                   )}
-                </div>
-                <div style={{ display: "grid", gap: 4 }}>
-                  <Text size="small" tagName="span">
-                    <FormattedMessage
-                      defaultMessage="Background"
-                      description="Label for the dropdown used to choose the widget background color"
-                    />
-                  </Text>
+                />
+                <FormField
+                  label={intl.formatMessage({
+                    defaultMessage: "Background",
+                    description: "Label for the dropdown used to choose the widget background color",
+                  })}
+                  control={(props) => (
                   <Select
+                    {...props}
                     stretch
                     value={bg}
                     options={[
                       { value: "white", label: intl.formatMessage({ defaultMessage: "White", description: "Background color option for a white widget background" }) },
                       { value: "transparent", label: intl.formatMessage({ defaultMessage: "Transparent", description: "Background color option for a transparent widget background" }) },
-                      { value: "#faf8f5", label: intl.formatMessage({ defaultMessage: "Warm White", description: "Background color option for a warm white widget background" }) },
-                      { value: "#f3f4f6", label: intl.formatMessage({ defaultMessage: "Light Gray", description: "Background color option for a light gray widget background" }) },
-                      { value: "#f0fbfb", label: intl.formatMessage({ defaultMessage: "Soft IAR Teal", description: "Background color option for a soft IAR teal widget background" }) },
+                      { value: "#faf8f5", label: intl.formatMessage({ defaultMessage: "Warm white", description: "Background color option for a warm white widget background" }) },
+                      { value: "#f3f4f6", label: intl.formatMessage({ defaultMessage: "Light gray", description: "Background color option for a light gray widget background" }) },
+                      { value: "#f0fbfb", label: intl.formatMessage({ defaultMessage: "Soft IAR teal", description: "Background color option for a soft IAR teal widget background" }) },
                     ]}
                     onChange={(value) => setBg(value as string)}
                   />
-                </div>
-                <div style={{ display: "grid", gap: 4 }}>
-                  <Text size="small" tagName="span">
-                    <FormattedMessage
-                      defaultMessage="Font size"
-                      description="Label for the dropdown used to choose the widget font size"
-                    />
-                  </Text>
+                  )}
+                />
+                <FormField
+                  label={intl.formatMessage({
+                    defaultMessage: "Font size",
+                    description: "Label for the dropdown used to choose the widget font size",
+                  })}
+                  control={(props) => (
                   <Select
+                    {...props}
                     stretch
                     value={fontSize}
                     options={[
@@ -1731,7 +1413,8 @@ export function App() {
                     ]}
                     onChange={(value) => setFontSize(value as string)}
                   />
-                </div>
+                  )}
+                />
                 <Checkbox
                   checked={border}
                   onChange={(_value, checked) => setBorder(checked)}
@@ -1741,209 +1424,223 @@ export function App() {
                   })}
                 />
               </div>
-            </details>
+              </AccordionItem>
+            </Accordion>
+            </div>
           </div>
+          )}
         </Section>
       )}
 
-      {/* Loader overlay */}
+      {/* Loading — determinate progress bar shown inline while charts are added */}
       {isInserting && (
-        <div
-          role="status"
-          aria-live="polite"
-          style={{
-            position: "fixed", inset: 0, background: tokens.colorFeedbackOverlayBg,
-            display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999
-          }}
-        >
-          <div style={{
-            width: 320, padding: 16, borderRadius: 12,
-            background: tokens.elevationSurfaceFloatingBg,
-            boxShadow: tokens.elevationSurfaceFloatingShadow,
-          }}>
-            <div style={{ marginBottom: 8 }}>
-              <Title size="small">
-                <FormattedMessage
-                  defaultMessage="Inserting…"
-                  description="Heading shown in the loader overlay while charts are being inserted"
-                />
-              </Title>
-            </div>
-            <div style={{ marginBottom: 8 }}>
-              <ProgressBar
-                value={Math.round(progress)}
-                ariaLabel={intl.formatMessage({
-                  defaultMessage: "Insertion progress",
-                  description: "Accessible label for the progress bar shown while charts are being inserted",
-                })}
-              />
-            </div>
-            <Text size="small" tone="secondary" tagName="div">
+        <div role="status" aria-live="polite" style={{ marginTop: 12 }}>
+          <Rows spacing="1u">
+            <Text variant="bold" tagName="div">
               <FormattedMessage
-                defaultMessage="This can take up to ~30s depending on data & network."
-                description="Helper text in the loader overlay explaining that insertion may take some time"
+                defaultMessage="Adding to your design…"
+                description="Heading shown above the progress bar while charts are being added"
               />
             </Text>
-          </div>
+            <ProgressBar
+              value={Math.round(progress)}
+              ariaLabel={intl.formatMessage({
+                defaultMessage: "Progress adding charts to the design",
+                description: "Accessible label for the progress bar shown while charts are being added",
+              })}
+            />
+            <Text size="small" tone="secondary" tagName="div">
+              <FormattedMessage
+                defaultMessage="This can take up to 30 seconds depending on data and network."
+                description="Helper text explaining that adding charts may take some time"
+              />
+            </Text>
+          </Rows>
         </div>
       )}
 
-      {/* Nav */}
-      <div style={{ height: 12 }} />
-      <div style={{ display: "grid", gap: 8 }}>
-        <Button
-          variant="primary"
-          stretch
-          onClick={step < 2 ? next : insert}
-          disabled={buttonDisabled}
-          loading={isInserting}
-        >
-          {buttonLabel}
-        </Button>
-        {step > 0 && (
-          <Button
-            variant="secondary"
-            stretch
-            onClick={back}
-            disabled={isInserting}
-          >
-            {intl.formatMessage({
-              defaultMessage: "Back",
-              description: "Secondary navigation button label used to go to the previous step",
-            })}
-          </Button>
-        )}
-      </div>
+      {/* Nav — hidden while the post-insert panel is up so the post-generate
+          view stays focused; dismissing the success alert restores it */}
+      {!(step === 2 && postInsertMode) && (
+        <>
+          <div style={{ height: 12 }} />
+          <div style={{ display: "grid", gap: 8 }}>
+            <Button
+              variant="primary"
+              stretch
+              onClick={step < 2 ? next : insert}
+              disabled={buttonDisabled}
+              loading={isInserting}
+            >
+              {buttonLabel}
+            </Button>
+            {step > 0 && (
+              <Button
+                variant="secondary"
+                stretch
+                onClick={back}
+                disabled={isInserting}
+              >
+                {intl.formatMessage({
+                  defaultMessage: "Go back",
+                  description: "Secondary navigation button label used to go to the previous step",
+                })}
+              </Button>
+            )}
+          </div>
+        </>
+      )}
       {step === 0 && (
-        <div style={{ marginTop: 10, textAlign: "center" }}>
-          <Link
-            href="https://data.indianarealtors.com/canva/learn"
-            requestOpenExternalUrl={() => {
-              requestOpenExternalUrl({
-                url: "https://data.indianarealtors.com/canva/learn",
-              }).catch(console.error);
-            }}
-          >
+        <div style={{ marginTop: 10 }}>
+          <Text size="small" tone="secondary" alignment="center" tagName="div">
             <FormattedMessage
-              defaultMessage="New here? Getting started"
-              description="Footer help link inviting first-time users to open the getting started guide"
+              defaultMessage="New here? <link>Getting started</link>"
+              description="Footer help text; only the short 'Getting started' phrase is a link to the guide"
+              values={{
+                link: (chunks) => (
+                  <Link
+                    href="https://data.indianarealtors.com/canva/learn"
+                    requestOpenExternalUrl={() => {
+                      requestOpenExternalUrl({
+                        url: "https://data.indianarealtors.com/canva/learn",
+                      }).catch(console.error);
+                    }}
+                  >
+                    {chunks}
+                  </Link>
+                ),
+              }}
             />
-          </Link>
+          </Text>
         </div>
       )}
+          </TabPanel>
+
+          <TabPanel id="saved" active={mainTab === "saved"}>
+            {allTemplatesSorted.length === 0 ? (
+              // Empty state — centered within the app panel
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  minHeight: 280,
+                  padding: 16,
+                }}
+              >
+                <Text tone="secondary" alignment="center" tagName="div">
+                  <FormattedMessage
+                    defaultMessage="No saved sets yet. After you add charts to a design, save the set to reuse it here."
+                    description="Empty-state message shown on the Saved tab when the user has no saved sets"
+                  />
+                </Text>
+              </div>
+            ) : (
+              <div style={{ marginTop: 12 }}>
+                <Rows spacing="2u">
+                  <FormField
+                    label={intl.formatMessage({
+                      defaultMessage: "Saved sets",
+                      description: "Label for the dropdown listing the user's saved sets",
+                    })}
+                    description={intl.formatMessage({
+                      defaultMessage: "Saved sets are stored on this device.",
+                      description: "Helper text explaining that saved sets are stored locally on the current device",
+                    })}
+                    control={(props) => (
+                      <Select
+                        {...props}
+                        stretch
+                        placeholder={intl.formatMessage({
+                          defaultMessage: "Choose a saved set",
+                          description: "Placeholder in the saved sets dropdown before a saved set is selected",
+                        })}
+                        value={activeTemplateId || undefined}
+                        options={allTemplatesSorted.map((t) => ({
+                          value: t.id,
+                          label: t.name,
+                          description: t.geoLabel || undefined,
+                        }))}
+                        onChange={(id) => {
+                          setActiveTemplateId(id as string);
+                          setConfirmDeleteArmed(false);
+                        }}
+                      />
+                    )}
+                  />
+                  <Button
+                    variant="primary"
+                    stretch
+                    disabled={!activeTemplate}
+                    onClick={() => {
+                      if (activeTemplate) loadTemplate(activeTemplate);
+                    }}
+                  >
+                    {intl.formatMessage({
+                      defaultMessage: "Load set",
+                      description: "Button label to load the currently selected saved set",
+                    })}
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    stretch
+                    disabled={!activeTemplate}
+                    onClick={() => {
+                      if (!activeTemplate) return;
+                      if (!confirmDeleteArmed) {
+                        armDeleteOnce();
+                        return;
+                      }
+                      deleteActiveTemplate();
+                      setConfirmDeleteArmed(false);
+                    }}
+                  >
+                    {confirmDeleteArmed
+                      ? intl.formatMessage({
+                          defaultMessage: "Click again to delete",
+                          description: "Delete confirmation button text shown after the first click on delete saved set",
+                        })
+                      : intl.formatMessage({
+                          defaultMessage: "Delete saved set",
+                          description: "Button label to delete the currently selected saved set",
+                        })}
+                  </Button>
+                </Rows>
+              </div>
+            )}
+          </TabPanel>
+        </TabPanels>
+      </Tabs>
     </div>
   );
 }
 
 /* ---------- UI bits ---------- */
-function Header({ step, steps }: { step: Step; steps: readonly string[] }) {
-  return (
-    <div style={{ display: "grid", gap: 6 }}>
-      <div style={{ display: "flex", gap: 4 }}>
-        {steps.map((_, i) => (
-          <div
-            key={i}
-            style={{
-              height: 4,
-              flex: 1,
-              borderRadius: 2,
-              background: i <= step ? tokens.colorActionPrimaryBg : tokens.colorUiNeutralBg,
-            }}
-          />
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function Section(props: { title: React.ReactNode; children: React.ReactNode }) {
+function Section(props: {
+  badge?: string;
+  badgeLabel?: string;
+  title: React.ReactNode;
+  children: React.ReactNode;
+}) {
   return (
     <div>
-      <div style={{ marginBottom: 12, marginTop: 12 }}>
-        <Text size="small" variant="bold" tagName="div">{props.title}</Text>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12, marginTop: 12 }}>
+        {props.badge && (
+          <Badge tone="assist" shape="circle" text={props.badge} ariaLabel={props.badgeLabel} />
+        )}
+        <Text variant="bold" tagName="div">{props.title}</Text>
       </div>
       {props.children}
     </div>
   );
 }
 
-
-function List({ children }: { children: React.ReactNode }) {
-  return (
-    <div style={list}>
-      <div style={{ maxHeight: 200, overflow: "auto" }}>{children}</div>
-    </div>
-  );
-}
-
-function Row({
-  active,
-  recommended,
-  title,
-  subtitle,
-  onClick,
-}: {
-  active?: boolean;
-  recommended?: boolean;
-  title?: string;
-  subtitle?: string;
-  onClick: () => void;
-}) {
-  return (
-    <div
-      onClick={onClick}
-      style={{
-        padding: 9,
-        cursor: "pointer",
-        background: active ? tokens.colorActionSelectedBg : tokens.elevationSurfaceBg,
-        borderBottom: `1px solid ${tokens.colorUiNeutralBg}`,
-        borderLeft: recommended ? `3px solid ${tokens.colorActionSelectedBorder}` : "3px solid transparent",
-      }}
-    >
-    <Text size="small" variant="bold" tagName="div">{title}</Text>
-
-    {(subtitle || recommended) && (
-      <div style={{ display: "flex", gap: 8, alignItems: "baseline" }}>
-        {subtitle && (
-          <div style={{ flex: 1 }}>
-            <Text size="small" tone="secondary" tagName="div">{subtitle}</Text>
-          </div>
-        )}
-        {recommended && (
-          <Text size="xsmall" tone="secondary" tagName="div">
-            <FormattedMessage
-              defaultMessage="Recommended"
-              description="Label shown next to recommended items in the list"
-            />
-          </Text>
-        )}
-      </div>
-    )}
-    </div>
-  );
-}
-
-
 /* ---------- Styles ---------- */
+// The Canva sandbox already provides left padding; apply our own to the
+// remaining sides only (16px top/right/bottom per design review).
 const shell: React.CSSProperties = {
-  padding: 12,
+  padding: "16px 16px 16px 0",
 };
-
-
-const list: React.CSSProperties = {
-  border: `1px solid ${tokens.colorUiNeutralBg}`,
-  borderRadius: 6,
-};
-
-function Empty({ children }: { children: React.ReactNode }) {
-  return (
-    <div style={{ padding: 12 }}>
-      <Text size="small" tone="tertiary" alignment="center" tagName="div">
-        {children}
-      </Text>
-    </div>
-  );
-}
 
 async function fetchPngAsDataUrl(url: string): Promise<string> {
   const token = await auth.getCanvaUserToken().catch(() => "");
