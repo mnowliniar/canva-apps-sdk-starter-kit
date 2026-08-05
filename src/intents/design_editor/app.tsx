@@ -300,7 +300,9 @@ export function App() {
         description: "Preset size label for a regular range plot widget",
       }),
       w: 325,
-      h: 200,
+      // 200 clipped the "Past 24 months" note + source line out of the card;
+      // 245 fits the full stack at both normal and large font sizes.
+      h: 245,
     },
   ];
 
