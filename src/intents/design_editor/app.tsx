@@ -4,7 +4,7 @@ import { upload } from "@canva/asset";
 import { addElementAtPoint, createRichtextRange } from "@canva/design";
 import { requestOpenExternalUrl } from "@canva/platform";
 import { auth } from "@canva/user";
-import { Accordion, AccordionItem, Button, Checkbox, Link, LinkButton, ProgressBar, Select, Text, TextInput, Title, tokens } from "@canva/app-ui-kit";
+import { Accordion, AccordionItem, Button, Checkbox, ColorSelector, FormField, Link, LinkButton, ProgressBar, SegmentedControl, Select, Text, TextInput, Title, tokens } from "@canva/app-ui-kit";
 import { GEO_TYPE_MESSAGES, TIMESPAN_MESSAGES, VIZ_MESSAGES } from "./generated/dynamic-messages";
 
 /* eslint-disable react/forbid-elements */
@@ -12,6 +12,8 @@ import { GEO_TYPE_MESSAGES, TIMESPAN_MESSAGES, VIZ_MESSAGES } from "./generated/
 /* eslint-disable no-console */
 
 const API = "https://data.indianarealtors.com/api/canva";
+// Default accent used by the chart backend when no custom color is set.
+const DEFAULT_BRAND_COLOR = "#006E8E";
 const TEXT = `${API}/text_data`;
 const LS_TOKEN_KEY = "iar_canva_access_token_v1";
 
@@ -1203,15 +1205,24 @@ export function App() {
           })}
         >
           <div style={{ marginTop: 4, marginBottom: 8 }}>
-            <Select
-              stretch
-              placeholder={intl.formatMessage({
-                defaultMessage: "Choose a type",
-                description: "Placeholder for the geo type dropdown",
+            <FormField
+              label={intl.formatMessage({
+                defaultMessage: "Market type",
+                description: "Label for the geo type dropdown",
               })}
-              value={geoType || undefined}
-              options={visibleGeoTypes.map((t) => ({ value: t, label: tGeoType(t) }))}
-              onChange={(value) => chooseGeoType(value as string)}
+              control={(props) => (
+                <Select
+                  {...props}
+                  stretch
+                  placeholder={intl.formatMessage({
+                    defaultMessage: "Choose a type",
+                    description: "Placeholder for the geo type dropdown",
+                  })}
+                  value={geoType || undefined}
+                  options={visibleGeoTypes.map((t) => ({ value: t, label: tGeoType(t) }))}
+                  onChange={(value) => chooseGeoType(value as string)}
+                />
+              )}
             />
           </div>
 
@@ -1276,25 +1287,30 @@ export function App() {
             description: "Section title for the second step where the user chooses a timeframe and metrics",
           })}
         >
-          <div style={{ marginTop:4, marginBottom: 8 }}>
-            <FormattedMessage
-              defaultMessage="Timeframe"
-              description="Label above the dropdown used to select the metric timeframe"
+          <div style={{ marginTop: 4 }}>
+            <FormField
+              label={intl.formatMessage({
+                defaultMessage: "Timeframe",
+                description: "Label above the dropdown used to select the metric timeframe",
+              })}
+              control={(props) => (
+                <Select
+                  {...props}
+                  stretch
+                  placeholder={intl.formatMessage({
+                    defaultMessage: "Select a timeframe",
+                    description: "Placeholder for the timeframe dropdown when nothing is selected",
+                  })}
+                  value={timespan ? String(timespan.id) : undefined}
+                  options={timespans.map((t) => ({ value: String(t.id), label: tTimespanLabel(t) }))}
+                  onChange={(id) => {
+                    const t = timespans.find((x) => String(x.id) === id) || null;
+                    if (t) setTimespan(t);
+                  }}
+                />
+              )}
             />
           </div>
-          <Select
-            stretch
-            placeholder={intl.formatMessage({
-              defaultMessage: "Select a timeframe",
-              description: "Placeholder for the timeframe dropdown when nothing is selected",
-            })}
-            value={timespan ? String(timespan.id) : undefined}
-            options={timespans.map((t) => ({ value: String(t.id), label: tTimespanLabel(t) }))}
-            onChange={(id) => {
-              const t = timespans.find((x) => String(x.id) === id) || null;
-              if (t) setTimespan(t);
-            }}
-          />
 
           <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginTop:4, marginBottom: 8 }}>
             <Text size="small" variant="bold" tagName="div">
@@ -1629,26 +1645,25 @@ export function App() {
                 })}
               </div>
             </div>
-            <div style={{ margin: "12px 0 6px" }}>
-              <Text size="small" variant="bold" tagName="div">
-                <FormattedMessage
-                  defaultMessage="Size"
-                  description="Heading above the preset size buttons for the selected widget"
+            {/* Size — hidden entirely when the widget only offers one preset */}
+            {presetSet.length > 1 && (
+              <div style={{ margin: "12px 0 6px" }}>
+                <FormField
+                  label={intl.formatMessage({
+                    defaultMessage: "Size",
+                    description: "Label above the preset size selector for the selected widget",
+                  })}
+                  control={({ id }: { id: string }) => (
+                    <SegmentedControl
+                      id={id}
+                      options={presetSet.map((p) => ({ value: p.id, label: p.label }))}
+                      value={presetId}
+                      onChange={(value) => setPresetId(value)}
+                    />
+                  )}
                 />
-              </Text>
-            </div>
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              {presetSet.map(p => (
-                <Button
-                  key={p.id}
-                  variant="tertiary"
-                  selected={presetId === p.id}
-                  onClick={() => setPresetId(p.id)}
-                >
-                  {p.label}
-                </Button>
-              ))}
-            </div>
+              </div>
+            )}
             <details style={{ marginTop: 10 }}>
               <summary style={{ cursor: "pointer", userSelect: "none" }}>
                 <Text variant="bold" tagName="span">
@@ -1669,39 +1684,31 @@ export function App() {
                     })}
                   />
                 )}
-                <div style={{ display: "grid", gap: 4 }}>
-                  <Text size="small" tagName="span">
-                    <FormattedMessage
-                      defaultMessage="Brand color (hex)"
-                      description="Label for the input where the user can enter a custom hex brand color"
+                <FormField
+                  label={intl.formatMessage({
+                    defaultMessage: "Brand color",
+                    description: "Label for the swatch that opens the brand color picker flyout",
+                  })}
+                  description={intl.formatMessage({
+                    defaultMessage: "Applied to charts and accents.",
+                    description: "Helper text under the brand color swatch",
+                  })}
+                  control={() => (
+                    <ColorSelector
+                      color={normalizeHex(color) || DEFAULT_BRAND_COLOR}
+                      onChange={(value) => setColor(value)}
+                      onDeleteColor={color ? () => setColor("") : undefined}
                     />
-                  </Text>
-                  <TextInput
-                    placeholder={intl.formatMessage({
-                      defaultMessage: "#006E8E",
-                      description: "Placeholder example shown in the custom brand color hex input",
-                    })}
-                    value={color}
-                    onChange={(value) => setColor(value)}
-                    error={normalizeHex(color) === "" && color.trim() !== ""}
-                  />
-                  {normalizeHex(color) === "" && color.trim() !== "" && (
-                    <Text tone="critical" size="small" tagName="span">
-                      <FormattedMessage
-                        defaultMessage="Enter a valid hex (e.g. #006E8E)"
-                        description="Validation message shown when the user enters an invalid hex color"
-                      />
-                    </Text>
                   )}
-                </div>
-                <div style={{ display: "grid", gap: 4 }}>
-                  <Text size="small" tagName="span">
-                    <FormattedMessage
-                      defaultMessage="Background"
-                      description="Label for the dropdown used to choose the widget background color"
-                    />
-                  </Text>
+                />
+                <FormField
+                  label={intl.formatMessage({
+                    defaultMessage: "Background",
+                    description: "Label for the dropdown used to choose the widget background color",
+                  })}
+                  control={(props) => (
                   <Select
+                    {...props}
                     stretch
                     value={bg}
                     options={[
@@ -1713,15 +1720,16 @@ export function App() {
                     ]}
                     onChange={(value) => setBg(value as string)}
                   />
-                </div>
-                <div style={{ display: "grid", gap: 4 }}>
-                  <Text size="small" tagName="span">
-                    <FormattedMessage
-                      defaultMessage="Font size"
-                      description="Label for the dropdown used to choose the widget font size"
-                    />
-                  </Text>
+                  )}
+                />
+                <FormField
+                  label={intl.formatMessage({
+                    defaultMessage: "Font size",
+                    description: "Label for the dropdown used to choose the widget font size",
+                  })}
+                  control={(props) => (
                   <Select
+                    {...props}
                     stretch
                     value={fontSize}
                     options={[
@@ -1731,7 +1739,8 @@ export function App() {
                     ]}
                     onChange={(value) => setFontSize(value as string)}
                   />
-                </div>
+                  )}
+                />
                 <Checkbox
                   checked={border}
                   onChange={(_value, checked) => setBorder(checked)}
