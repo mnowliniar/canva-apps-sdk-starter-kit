@@ -4,10 +4,9 @@ import { upload } from "@canva/asset";
 import { addElementAtPoint, createRichtextRange } from "@canva/design";
 import { requestOpenExternalUrl } from "@canva/platform";
 import { auth } from "@canva/user";
-import { Accordion, AccordionItem, Button, Checkbox, ColorSelector, FormField, Link, LinkButton, ProgressBar, SegmentedControl, Select, Text, TextInput, Title, tokens } from "@canva/app-ui-kit";
+import { Accordion, AccordionItem, Alert, Badge, Button, Checkbox, ColorSelector, FormField, HorizontalCard, Link, ProgressBar, Rows, SegmentedControl, Select, Tab, TabList, TabPanel, TabPanels, Tabs, Text, TextInput, Title, tokens } from "@canva/app-ui-kit";
 import { GEO_TYPE_MESSAGES, TIMESPAN_MESSAGES, VIZ_MESSAGES } from "./generated/dynamic-messages";
 
-/* eslint-disable react/forbid-elements */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable no-console */
 
@@ -169,20 +168,6 @@ export function App() {
     );
   };
 
-  const steps = [
-    intl.formatMessage({
-      defaultMessage: "Pick your market",
-      description: "Step label for the first step in the app flow",
-    }),
-    intl.formatMessage({
-      defaultMessage: "Pick metrics",
-      description: "Step label for the second step in the app flow",
-    }),
-    intl.formatMessage({
-      defaultMessage: "Options & insert",
-      description: "Step label for the third step in the app flow",
-    }),
-  ] as const;
   // --- Auth gate ---
   // We silently check (on boot) whether this Canva user is already linked to an IAR
   // member account. Linking unlocks protected markets/metrics; when unlinked the app
@@ -399,93 +384,20 @@ export function App() {
     },
   ] as const;
 
-  const PREVIEW_LABELS: Record<string, string> = {
-  kpi: intl.formatMessage({
-    defaultMessage: "kpi",
-    description: "Fallback preview label for the KPI widget preview",
-  }),
-  strip: intl.formatMessage({
-    defaultMessage: "strip",
-    description: "Fallback preview label for the strip widget preview",
-  }),
-  chart: intl.formatMessage({
-    defaultMessage: "chart",
-    description: "Fallback preview label for the chart widget preview",
-  }),
-  text: intl.formatMessage({
-    defaultMessage: "text",
-    description: "Fallback preview label for the text widget preview",
-  }),
-  range: intl.formatMessage({
-    defaultMessage: "range",
-    description: "Fallback preview label for the range widget preview",
-  }),
-};
-
-  // ---- Widget preview SVGs (inline; swap paths anytime) ----
-  const PreviewChart = () => (
-    <svg width="56" height="36" viewBox="0 0 56 36" xmlns="http://www.w3.org/2000/svg">
-      <rect x="1.85" y="1.79" width="28.45" height="4.55" rx="2" ry="2" fill="#e6e7e8" />
-      <rect x="1.85" y="8.69" width="52.29" height="25.59" rx="2" ry="2" fill="#e6e7e8" />
-      <polyline
-        points="2.64 27.82 11.58 23.1 21.72 25.07 30.2 19.94 40.91 22.9 53.33 17.55"
-        fill="none"
-        stroke="#a7a9ac"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth="3"
-      />
-      <rect width="56" height="36" fill="none" />
-    </svg>
-  );
-
-  const PreviewKpi = () => (
-    <svg id="Layer_1" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" width="56" height="36" viewBox="0 0 56 36">
-      <rect x="1.85" y="1.79" width="28.45" height="4.55" rx="2" ry="2" fill="#e6e7e8"/>
-      <rect x="1.85" y="8.69" width="52.29" height="5.21" rx="2" ry="2" fill="#a7a9ac"/>
-      <polyline points="4.34 30.55 11.31 28.04 19.22 29.09 25.83 26.36 34.19 27.93 43.87 25.09" fill="none" stroke="#d1d3d4" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"/>
-      <rect width="56" height="36" fill="none"/>
-    </svg>
-  );
-
-  const PreviewText = () => (
-    <svg id="Layer_1" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" width="56" height="36" viewBox="0 0 56 36">
-      <rect x="1.85" y="6.27" width="28.45" height="4.55" rx="2" ry="2" fill="#a7a9ac"/>
-      <rect x="1.85" y="13.17" width="52.29" height="5.21" rx="2" ry="2" fill="#d1d3d4"/>
-      <rect x="1.85" y="20.45" width="52.29" height="5.21" rx="2" ry="2" fill="#d1d3d4"/>
-      <rect width="56" height="36" fill="none"/>
-    </svg>
-  );
-
-  const PreviewStrip = () => (
-    <svg id="Layer_1" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" width="56" height="36" viewBox="0 0 56 36">
-      <rect x=".73" y="7.72" width="16.6" height="19.39" rx="2" ry="2" fill="#e6e7e8"/>
-      <rect x="2.93" y="11.13" width="12.2" height="5.21" rx="2" ry="2" fill="#a7a9ac"/>
-      <rect x="19.83" y="7.72" width="16.6" height="19.39" rx="2" ry="2" fill="#e6e7e8"/>
-      <rect x="38.93" y="7.72" width="16.6" height="19.39" rx="2" ry="2" fill="#e6e7e8"/>
-      <rect width="56" height="36" fill="none"/>
-      <rect x="22.03" y="11.1" width="12.2" height="5.21" rx="2" ry="2" fill="#a7a9ac"/>
-      <rect x="41.14" y="11.13" width="12.2" height="5.21" rx="2" ry="2" fill="#a7a9ac"/>
-    </svg>
-  );
-
-  const PreviewRange = () => (
-    <svg id="Layer_1" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" width="56" height="36" viewBox="0 0 56 36">
-      <rect x="2.6" y="3.8" width="49.96" height="27.42" rx="2" ry="2" fill="#f1f2f2"/>
-      <rect x="4.66" y="6.5" width="23.47" height="5.21" rx="2" ry="2" fill="#d1d3d4"/>
-      <rect x="4.66" y="21.85" width="45.6" height="4" rx="2" ry="2" fill="#d1d3d4"/>
-      <rect width="56" height="36" fill="none"/>
-      <circle cx="38.72" cy="23.69" r="3.26" fill="#a7a9ac"/>
-    </svg>
-  );
-
-  const PREVIEW_BY_WIDGET: Record<string, React.ReactNode> = {
-    chart: <PreviewChart />,
-    kpi: <PreviewKpi />,
-    text: <PreviewText />,
-    strip: <PreviewStrip />,
-    dot_range_h: <PreviewRange />,
+  // ---- Widget preview SVGs (as data URIs for HorizontalCard thumbnails) ----
+  const PREVIEW_SVG_BY_WIDGET: Record<string, string> = {
+    chart:
+      '<svg width="56" height="36" viewBox="0 0 56 36" xmlns="http://www.w3.org/2000/svg"><rect x="1.85" y="1.79" width="28.45" height="4.55" rx="2" ry="2" fill="#e6e7e8"/><rect x="1.85" y="8.69" width="52.29" height="25.59" rx="2" ry="2" fill="#e6e7e8"/><polyline points="2.64 27.82 11.58 23.1 21.72 25.07 30.2 19.94 40.91 22.9 53.33 17.55" fill="none" stroke="#a7a9ac" stroke-linecap="round" stroke-linejoin="round" stroke-width="3"/></svg>',
+    kpi:
+      '<svg xmlns="http://www.w3.org/2000/svg" width="56" height="36" viewBox="0 0 56 36"><rect x="1.85" y="1.79" width="28.45" height="4.55" rx="2" ry="2" fill="#e6e7e8"/><rect x="1.85" y="8.69" width="52.29" height="5.21" rx="2" ry="2" fill="#a7a9ac"/><polyline points="4.34 30.55 11.31 28.04 19.22 29.09 25.83 26.36 34.19 27.93 43.87 25.09" fill="none" stroke="#d1d3d4" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>',
+    text:
+      '<svg xmlns="http://www.w3.org/2000/svg" width="56" height="36" viewBox="0 0 56 36"><rect x="1.85" y="6.27" width="28.45" height="4.55" rx="2" ry="2" fill="#a7a9ac"/><rect x="1.85" y="13.17" width="52.29" height="5.21" rx="2" ry="2" fill="#d1d3d4"/><rect x="1.85" y="20.45" width="52.29" height="5.21" rx="2" ry="2" fill="#d1d3d4"/></svg>',
+    strip:
+      '<svg xmlns="http://www.w3.org/2000/svg" width="56" height="36" viewBox="0 0 56 36"><rect x=".73" y="7.72" width="16.6" height="19.39" rx="2" ry="2" fill="#e6e7e8"/><rect x="2.93" y="11.13" width="12.2" height="5.21" rx="2" ry="2" fill="#a7a9ac"/><rect x="19.83" y="7.72" width="16.6" height="19.39" rx="2" ry="2" fill="#e6e7e8"/><rect x="38.93" y="7.72" width="16.6" height="19.39" rx="2" ry="2" fill="#e6e7e8"/><rect x="22.03" y="11.1" width="12.2" height="5.21" rx="2" ry="2" fill="#a7a9ac"/><rect x="41.14" y="11.13" width="12.2" height="5.21" rx="2" ry="2" fill="#a7a9ac"/></svg>',
+    dot_range_h:
+      '<svg xmlns="http://www.w3.org/2000/svg" width="56" height="36" viewBox="0 0 56 36"><rect x="2.6" y="3.8" width="49.96" height="27.42" rx="2" ry="2" fill="#f1f2f2"/><rect x="4.66" y="6.5" width="23.47" height="5.21" rx="2" ry="2" fill="#d1d3d4"/><rect x="4.66" y="21.85" width="45.6" height="4" rx="2" ry="2" fill="#d1d3d4"/><circle cx="38.72" cy="23.69" r="3.26" fill="#a7a9ac"/></svg>',
   };
+  const svgDataUrl = (svg: string) => `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
 
 
   const PRESET_MAP = {
@@ -522,24 +434,10 @@ export function App() {
   const isSelectedViz = (id: string | number) =>
     selectedVizzes.some((v) => String(v.id) === String(id));
 
-  function addVizToBundle(v: Item) {
-    if (isSelectedViz(v.id)) return;
-    if (selectedVizzes.length >= BUNDLE_MAX) return;
-    setSelectedVizzes((prev) => [...prev, v]);
-  }
-
-  function removeVizFromBundle(id: string | number) {
-    setSelectedVizzes((prev) => prev.filter((v) => String(v.id) !== String(id)));
-  }
-
-  function clearBundle() {
-    setSelectedVizzes([]);
-  }
-
   // ui
   const [q, setQ] = useState("");
-  const [vizQ, setVizQ] = useState("");
   const [step, setStep] = useState<Step>(0);
+  const [mainTab, setMainTab] = useState<"create" | "saved">("create");
 
   // options
   const [widget, setWidget] = useState<"kpi"|"strip"|"chart"|"dot_range_h"|"text">("kpi");
@@ -562,8 +460,6 @@ export function App() {
   const [templates, setTemplates] = useState<SavedTemplate[]>([]);
   const [activeTemplateId, setActiveTemplateId] = useState<string>("");
   const [templateName, setTemplateName] = useState<string>("");
-  const [showManageSets, setShowManageSets] = useState<boolean>(false);
-  const [savedSetsOpen, setSavedSetsOpen] = useState<boolean>(false);
   const [confirmDeleteArmed, setConfirmDeleteArmed] = useState<boolean>(false);
   const pendingVizIdsRef = useRef<string[] | null>(null);
   const pendingGeoIdRef = useRef<string | null>(null);
@@ -683,7 +579,6 @@ export function App() {
   const allTemplatesSorted = [...templates].sort((a, b) => (a.savedAt < b.savedAt ? 1 : -1));
 
   const activeTemplate = allTemplatesSorted.find((t) => t.id === activeTemplateId) || null;
-  const canLoadAnyTemplate = allTemplatesSorted.length > 0;
 
   // Template helpers
   function snapshotCurrentTemplate(name: string): SavedTemplate | null {
@@ -769,12 +664,12 @@ export function App() {
     // Bundle: apply viz selection once vizzes load.
     pendingVizIdsRef.current = [...t.vizIds];
 
-    setVizQ("");
     setPostInsertMode(false);
     setLastInsertCount(0);
 
     // Start on step 0 while the market resolves; the geos effect will jump to step 2.
     setStep(0);
+    setMainTab("create");
   }
 
   // choose helpers
@@ -783,7 +678,7 @@ export function App() {
     setGeo(null);
     setTimespan(null);
     setSelectedVizzes([]);
-    setVizQ("");
+    setQ("");
     setStep(0); // stay on market picker; list reloads
   }
 
@@ -1007,9 +902,23 @@ export function App() {
           }));
   return (
     <div style={shell}>
-      <Header step={step} steps={steps} />
-      <div style={{ height: 8 }} />
-
+      <Tabs activeId={mainTab} onSelect={(id) => setMainTab(id as "create" | "saved")}>
+        <TabList align="stretch">
+          <Tab id="create">
+            {intl.formatMessage({
+              defaultMessage: "Create",
+              description: "Tab label for the main flow where the user builds and adds charts",
+            })}
+          </Tab>
+          <Tab id="saved">
+            {intl.formatMessage({
+              defaultMessage: "Saved",
+              description: "Tab label for the list of saved sets",
+            })}
+          </Tab>
+        </TabList>
+        <TabPanels>
+          <TabPanel id="create">
       {(geo || selectedVizzes.length > 0) && (
         <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginBottom: 4 }}>
           {geo && (
@@ -1057,148 +966,14 @@ export function App() {
         </div>
       )}
 
-      {/* Saved sets shortcut — always above the step flow */}
-      {step < 2 && (
-        <div style={{ marginBottom: 12 }}>
-          <Accordion dividers={false}>
-            <AccordionItem
-              title={intl.formatMessage({
-                defaultMessage: "Saved sets",
-                description: "Toggle label for the collapsible saved sets section",
-              })}
-              expanded={savedSetsOpen}
-              onClick={() => {
-                setSavedSetsOpen((v) => !v);
-                setShowManageSets(false);
-                setConfirmDeleteArmed(false);
-              }}
-            >
-              <div style={{ display: "grid", gap: 10 }}>
-                <div style={{ display: "flex", gap: 8, alignItems: "stretch" }}>
-                  <Select
-                    stretch
-                    placeholder={intl.formatMessage({
-                      defaultMessage: "Load a saved set…",
-                      description: "Placeholder option in the saved sets dropdown before a saved set is selected",
-                    })}
-                    value={activeTemplateId || undefined}
-                    options={allTemplatesSorted.map((t) => ({ value: t.id, label: t.name }))}
-                    onChange={(id) => setActiveTemplateId(id as string)}
-                    disabled={!canLoadAnyTemplate}
-                  />
-                  <Button
-                    variant="secondary"
-                    onClick={() => {
-                      const t = allTemplatesSorted.find((x) => x.id === activeTemplateId);
-                      if (t) loadTemplate(t);
-                    }}
-                    disabled={!activeTemplateId}
-                  >
-                    {intl.formatMessage({
-                      defaultMessage: "Load",
-                      description: "Button label to load the currently selected saved set",
-                    })}
-                  </Button>
-                </div>
-
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
-                  <Text size="xsmall" tone="tertiary" tagName="div">
-                    <FormattedMessage
-                      defaultMessage="Saved sets are stored on this device."
-                      description="Helper text explaining that saved sets are stored locally on the current device"
-                    />
-                  </Text>
-                  <LinkButton
-                    onClick={() => {
-                      setShowManageSets((s) => !s);
-                      setConfirmDeleteArmed(false);
-                    }}
-                  >
-                    <FormattedMessage
-                      defaultMessage="Manage"
-                      description="Button label that opens the panel for managing saved sets"
-                    />
-                  </LinkButton>
-                </div>
-
-                {showManageSets && (
-                  <div style={{ display: "grid", gap: 8 }}>
-                    <Text size="small" variant="bold" tagName="div">
-                      <FormattedMessage
-                        defaultMessage="Manage saved sets"
-                        description="Heading for the panel where the user can manage saved sets"
-                      />
-                    </Text>
-
-                    <Text size="small" tone="secondary" tagName="div">
-                      {activeTemplate ? (
-                        <>
-                          <FormattedMessage
-                            defaultMessage="Selected:"
-                            description="Label shown before the name of the currently selected saved set in the manage panel"
-                          />{" "}
-                          <Text size="small" variant="bold" tagName="span">
-                            {activeTemplate.name}
-                          </Text>
-                        </>
-                      ) : (
-                        <FormattedMessage
-                          defaultMessage="Select a saved set above to manage it."
-                          description="Instruction shown in the manage saved sets panel when no saved set is selected"
-                        />
-                      )}
-                    </Text>
-
-                    <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", flexWrap: "wrap" }}>
-                      <Button
-                        variant="secondary"
-                        onClick={() => {
-                          if (!activeTemplate) return;
-                          if (!confirmDeleteArmed) {
-                            armDeleteOnce();
-                            return;
-                          }
-                          deleteActiveTemplate();
-                          setConfirmDeleteArmed(false);
-                        }}
-                        disabled={!activeTemplate}
-                      >
-                        {confirmDeleteArmed
-                          ? intl.formatMessage({
-                              defaultMessage: "Click again to delete",
-                              description: "Delete confirmation button text shown after the first click on delete saved set",
-                            })
-                          : intl.formatMessage({
-                              defaultMessage: "Delete saved set",
-                              description: "Button label to delete the currently selected saved set",
-                            })}
-                      </Button>
-                    </div>
-
-                    <div style={{ display: "flex", justifyContent: "flex-end" }}>
-                      <LinkButton
-                        onClick={() => {
-                          setShowManageSets(false);
-                          setConfirmDeleteArmed(false);
-                        }}
-                      >
-                        <FormattedMessage
-                          defaultMessage="Done"
-                          description="Button label to close the manage saved sets panel"
-                        />
-                      </LinkButton>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </AccordionItem>
-          </Accordion>
-        </div>
-      )}
-
       {/* Step 0: Market picker (type + search + list) */}
       {step === 0 && (
         <Section
+          badge="1"
+          badgeLabel={intl.formatMessage({
+            defaultMessage: "Step 1 of 3",
+            description: "Accessible label for the step one indicator badge",
+          })}
           title={intl.formatMessage({
             defaultMessage: "Pick your market",
             description: "Section title for the first step where the user selects a market",
@@ -1227,54 +1002,41 @@ export function App() {
           </div>
 
           {geoType && (
-            <>
-              <div style={{ marginTop: 8, marginBottom: 8 }}>
-                <TextInput
-                  type="search"
+            <FormField
+              label={intl.formatMessage({
+                defaultMessage: "Market",
+                description: "Label for the searchable market dropdown",
+              })}
+              control={(props) => (
+                <Select
+                  {...props}
+                  stretch
                   placeholder={intl.formatMessage({
-                    defaultMessage: "Search markets",
-                    description: "Placeholder text in the market search input",
+                    defaultMessage: "Choose a market",
+                    description: "Placeholder for the market dropdown before a market is selected",
                   })}
-                  value={q}
-                  onChange={(value) => setQ(value)}
+                  searchable={{
+                    // The server filters via the q param; show its results as-is.
+                    filterFn: (_query, options) => options,
+                    onInputChange: (query) => setQ(query),
+                    inputPlaceholder: intl.formatMessage({
+                      defaultMessage: "Search markets",
+                      description: "Placeholder text in the market search input",
+                    }),
+                  }}
+                  value={geo ? String(geo.id) : undefined}
+                  options={geos.map((g) => ({
+                    value: String(g.id),
+                    label: g.name || g.label || String(g.id),
+                    description: tGeoSubtitle(g),
+                  }))}
+                  onChange={(id) => {
+                    const hit = geos.find((g) => String(g.id) === String(id)) || null;
+                    if (hit) setGeo(hit);
+                  }}
                 />
-              </div>
-
-              {geo && (
-                <div style={{ margin: "6px 0 4px" }}>
-                  <Text size="small" tagName="div">
-                    <Text size="small" variant="bold" tagName="span">
-                      <FormattedMessage
-                        defaultMessage="Selected market:"
-                        description="Label shown before the currently selected market name"
-                      />
-                    </Text>
-                    {/* eslint-disable-next-line formatjs/no-literal-string-in-jsx */}
-                    {" "}{geo.name || geo.label}
-                  </Text>
-                </div>
               )}
-
-              <List>
-                {geos.map((g) => (
-                  <Row
-                    key={String(g.id)}
-                    active={geo?.id === g.id}
-                    title={g.name || g.label}
-                    subtitle={tGeoSubtitle(g)}
-                    onClick={() => setGeo(g)}
-                  />
-                ))}
-                {geos.length === 0 && (
-                  <Empty>
-                    <FormattedMessage
-                      defaultMessage="Start typing to filter…"
-                      description="Empty-state message shown when the user should type to filter the market list"
-                    />
-                  </Empty>
-                )}
-              </List>
-            </>
+            />
           )}
         </Section>
       )}
@@ -1282,6 +1044,11 @@ export function App() {
       {/* Step 1: Timespan + Viz (combined) */}
       {step === 1 && (
         <Section
+          badge="2"
+          badgeLabel={intl.formatMessage({
+            defaultMessage: "Step 2 of 3",
+            description: "Accessible label for the step two indicator badge",
+          })}
           title={intl.formatMessage({
             defaultMessage: "Pick a timeframe and metrics",
             description: "Section title for the second step where the user chooses a timeframe and metrics",
@@ -1312,228 +1079,149 @@ export function App() {
             />
           </div>
 
-          <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginTop:4, marginBottom: 8 }}>
-            <Text size="small" variant="bold" tagName="div">
-              <FormattedMessage
-                defaultMessage="Metrics"
-                description="Label above the list of metrics in step two"
-              />
-            </Text>
-            <Text size="small" tone={selectedVizzes.length >= BUNDLE_MAX ? "primary" : "secondary"} tagName="div">
-              {intl.formatMessage(
-                {
-                  defaultMessage: "Bundle ({count}/{max})",
-                  description: "Label showing how many metrics are currently selected out of the maximum allowed",
-                },
-                { count: selectedVizzes.length, max: BUNDLE_MAX },
-              )}
-            </Text>
-          </div>
-
-
-          <div style={{ marginBottom: 8 }}>
-            <TextInput
-              type="search"
-              placeholder={selectedVizzes.length >= BUNDLE_MAX
-                ? intl.formatMessage({
-                    defaultMessage: "Bundle full (3)",
-                    description: "Placeholder shown in the metric search input when the user has already selected the maximum number of metrics",
-                  })
-                : intl.formatMessage({
-                    defaultMessage: "Search metrics",
-                    description: "Placeholder text in the metric search input",
-                  })}
-              value={vizQ}
-              onChange={(value) => setVizQ(value)}
-              disabled={!timespan}
+          <div style={{ marginTop: 8 }}>
+            <FormField
+              label={intl.formatMessage({
+                defaultMessage: "Metrics",
+                description: "Label above the metric multi-select in step two",
+              })}
+              description={
+                !timespan
+                  ? intl.formatMessage({
+                      defaultMessage: "Choose a timeframe to load metrics.",
+                      description: "Helper text shown before the user selects a timeframe",
+                    })
+                  : vizzes.length === 0
+                    ? intl.formatMessage({
+                        defaultMessage: "No metrics found for this timeframe.",
+                        description: "Helper text shown when no metrics are available for the selected timeframe",
+                      })
+                    : intl.formatMessage(
+                        {
+                          defaultMessage: "Choose up to {max}. Selected: {count} of {max}.",
+                          description: "Helper text showing how many metrics are selected out of the maximum allowed",
+                        },
+                        { count: selectedVizzes.length, max: BUNDLE_MAX },
+                      )
+              }
+              control={(props) => {
+                const sorted = [...vizzes].sort((a, b) =>
+                  tVizTitle(a).toLowerCase().localeCompare(tVizTitle(b).toLowerCase(), intl.locale),
+                );
+                const toOption = (v: Item) => ({
+                  value: String(v.id),
+                  label: tVizTitle(v),
+                  description: tVizSubtitle(v) || undefined,
+                  disabled: !isSelectedViz(v.id) && selectedVizzes.length >= BUNDLE_MAX,
+                });
+                const recommended = sorted.filter(isRecommendedViz).map(toOption);
+                const others = sorted.filter((v) => !isRecommendedViz(v)).map(toOption);
+                return (
+                  <Select
+                    {...props}
+                    stretch
+                    type="multi"
+                    searchable
+                    disabled={!timespan || vizzes.length === 0}
+                    placeholder={intl.formatMessage({
+                      defaultMessage: "Choose metrics",
+                      description: "Placeholder for the metric multi-select before any metric is selected",
+                    })}
+                    value={selectedVizzes.map((v) => String(v.id))}
+                    options={[
+                      ...(recommended.length
+                        ? [
+                            {
+                              label: intl.formatMessage({
+                                defaultMessage: "Recommended",
+                                description: "Group label for recommended metrics in the metric dropdown",
+                              }),
+                              options: recommended,
+                            },
+                          ]
+                        : []),
+                      {
+                        label: intl.formatMessage({
+                          defaultMessage: "All metrics",
+                          description: "Group label for the remaining metrics in the metric dropdown",
+                        }),
+                        options: others,
+                      },
+                    ]}
+                    onChange={(values) => {
+                      const ids = (values as string[]).slice(0, BUNDLE_MAX);
+                      setSelectedVizzes(
+                        ids
+                          .map((id) => vizzes.find((v) => String(v.id) === id))
+                          .filter((v): v is Item => Boolean(v)),
+                      );
+                    }}
+                  />
+                );
+              }}
             />
           </div>
-
-          <List>
-            {(() => {
-              const needle = vizQ.trim().toLowerCase();
-              const base = !needle
-                ? vizzes
-                : vizzes.filter((v) => {
-                    const hay = `${tVizTitle(v)} ${tVizSubtitle(v)} ${v.title ?? ""} ${v.name ?? ""} ${v.subtitle ?? ""} ${v.label ?? ""}`.toLowerCase();
-                    return hay.includes(needle);
-                  });
-
-              const filtered = [...base].sort((a, b) => {
-                const ar = isRecommendedViz(a) ? 0 : 1;
-                const br = isRecommendedViz(b) ? 0 : 1;
-                if (ar !== br) return ar - br;
-                const at = tVizTitle(a).toLowerCase();
-                const bt = tVizTitle(b).toLowerCase();
-                return at.localeCompare(bt, intl.locale);
-              });
-
-              if (!timespan) {
-                return (
-                  <Empty>
-                    <FormattedMessage
-                      defaultMessage="Choose a timeframe to load metrics"
-                      description="Empty-state message shown before the user selects a timeframe"
-                    />
-                  </Empty>
-                );
-              }
-              if (vizzes.length === 0) {
-                return (
-                  <Empty>
-                    <FormattedMessage
-                      defaultMessage="No metrics found for this timeframe"
-                      description="Empty-state message shown when no metrics are available for the selected timeframe"
-                    />
-                  </Empty>
-                );
-              }
-              if (filtered.length === 0) {
-                return (
-                  <Empty>
-                    <FormattedMessage
-                      defaultMessage="No matches"
-                      description="Empty-state message shown when no metrics match the search term"
-                    />
-                  </Empty>
-                );
-              }
-
-              return filtered.map((v) => {
-                const selected = isSelectedViz(v.id);
-                const disabledAdd = !selected && selectedVizzes.length >= BUNDLE_MAX;
-
-                return (
-                  <div
-                    key={String(v.id)}
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns: "1fr auto",
-                      gap: 10,
-                      alignItems: "center",
-                      padding: 9,
-                      background: selected ? tokens.colorActionSelectedBg : tokens.elevationSurfaceBg,
-                      borderBottom: `1px solid ${tokens.colorUiNeutralBg}`,
-                      borderLeft: isRecommendedViz(v) ? `3px solid ${tokens.colorActionSelectedBorder}` : "3px solid transparent",
-                      cursor: "default",
-                    }}
-                  >
-                    <div>
-                      <Text size="small" variant="bold" tagName="div">
-                        {tVizTitle(v)}
-                      </Text>
-                      {(tVizSubtitle(v) || isRecommendedViz(v)) && (
-                        <div style={{ display: "flex", gap: 8, alignItems: "baseline" }}>
-                          {tVizSubtitle(v) && (
-                            <div style={{ flex: 1 }}>
-                              <Text size="small" tone="secondary" tagName="div">
-                                {tVizSubtitle(v)}
-                              </Text>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-
-                    <Button
-                      variant="secondary"
-                      selected={selected}
-                      onClick={() => {
-                        if (selected) removeVizFromBundle(v.id);
-                        else addVizToBundle(v);
-                      }}
-                      disabled={disabledAdd}
-                    >
-                      {selected
-                        ? intl.formatMessage({
-                            defaultMessage: "Remove",
-                            description: "Button label used to remove a metric from the selected bundle",
-                          })
-                        : intl.formatMessage({
-                            defaultMessage: "Add",
-                            description: "Button label used to add a metric to the selected bundle",
-                          })}
-                    </Button>
-                  </div>
-                );
-              });
-            })()}
-          </List>
         </Section>
       )}
 
       {/* Step 2: Options & insert */}
       {step === 2 && (
         <Section
+          badge="3"
+          badgeLabel={intl.formatMessage({
+            defaultMessage: "Step 3 of 3",
+            description: "Accessible label for the step three indicator badge",
+          })}
           title={intl.formatMessage({
             defaultMessage: "Options & insert",
             description: "Section title for the third step where the user chooses widget options and inserts charts",
           })}
         >
-          {/* Post-insert actions (save/export after you insert) */}
+          {/* Post-insert: focused view — success alert + next actions only */}
           {postInsertMode && (
-            <div style={{
-              border: `1px solid ${tokens.colorActionSecondaryBorder}`,
-              borderRadius: 12,
-              padding: 12,
-              background: tokens.elevationSurfaceBg,
-              marginBottom: 14,
-              display: "grid",
-              gap: 10,
-            }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 10 }}>
-                <Text size="small" variant="bold" tagName="div">
-                  {intl.formatMessage(
-                    {
-                      defaultMessage: "Inserted {count} {itemLabel}",
-                      description: "Confirmation message shown after charts are inserted into Canva",
-                    },
-                    {
-                      count: lastInsertCount,
-                      itemLabel:
-                        lastInsertCount === 1
-                          ? intl.formatMessage({
-                              defaultMessage: "card",
-                              description: "Singular noun used in the post-insert confirmation message",
-                            })
-                          : intl.formatMessage({
-                              defaultMessage: "cards",
-                              description: "Plural noun used in the post-insert confirmation message",
-                            }),
-                    },
-                  )}
-                </Text>
-                <LinkButton
-                  onClick={() => {
+            <div style={{ marginBottom: 14 }}>
+              <Rows spacing="2u">
+                <Alert
+                  tone="positive"
+                  onDismiss={() => {
                     setPostInsertMode(false);
                     setLastInsertCount(0);
                   }}
                 >
-                  <FormattedMessage
-                    defaultMessage="Dismiss"
-                    description="Button label that closes the post-insert confirmation panel"
-                  />
-                </LinkButton>
-              </div>
+                  {intl.formatMessage(
+                    {
+                      defaultMessage:
+                        "Added {count, plural, one {# card} other {# cards}} to your design.",
+                      description: "Success message shown after charts are added to the Canva design",
+                    },
+                    { count: lastInsertCount },
+                  )}
+                </Alert>
 
-              <Text size="small" tone="secondary" tagName="div">
-                <FormattedMessage
-                  defaultMessage="Save this bundle so you can load it next time and skip setup."
-                  description="Helper text encouraging the user to save the current bundle after insertion"
-                />
-              </Text>
-
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                <TextInput
-                  placeholder={intl.formatMessage({
-                    defaultMessage: "Name this saved set",
-                    description: "Placeholder text in the input used to name a saved set after insertion",
+                <FormField
+                  label={intl.formatMessage({
+                    defaultMessage: "Save this set",
+                    description: "Label for the input used to name a saved set after insertion",
                   })}
-                  value={templateName}
-                  onChange={(value) => setTemplateName(value)}
+                  description={intl.formatMessage({
+                    defaultMessage: "Load it next time and skip setup.",
+                    description: "Helper text encouraging the user to save the current bundle after insertion",
+                  })}
+                  control={(props) => (
+                    <TextInput
+                      {...props}
+                      placeholder={intl.formatMessage({
+                        defaultMessage: "Name this saved set",
+                        description: "Placeholder text in the input used to name a saved set after insertion",
+                      })}
+                      value={templateName}
+                      onChange={(value) => setTemplateName(value)}
+                    />
+                  )}
                 />
                 <Button
                   variant="secondary"
+                  stretch
                   onClick={saveNewTemplate}
                   disabled={!geo || !timespan || selectedVizzes.length === 0}
                 >
@@ -1542,108 +1230,84 @@ export function App() {
                     description: "Button label used to save the current bundle as a saved set",
                   })}
                 </Button>
-              </div>
 
-              {/* New button: Generate AI caption */}
-              <Button
-                variant="secondary"
-                stretch
-                onClick={() => {
-                  if (!geo || selectedVizzes.length === 0) return;
-                  generateAndInsertCaption({
-                    geo_id: geo.id,
-                    viz_id: selectedVizzes[0]!.id,
-                    proptype,
-                  });
-                }}
-                disabled={!geo || selectedVizzes.length === 0}
-              >
-                {intl.formatMessage({
-                  defaultMessage: "Generate AI caption",
-                  description: "Button label used to generate and insert an AI-written caption for the selected metric",
-                })}
-              </Button>
+                <Button
+                  variant="secondary"
+                  stretch
+                  onClick={() => {
+                    if (!geo || selectedVizzes.length === 0) return;
+                    generateAndInsertCaption({
+                      geo_id: geo.id,
+                      viz_id: selectedVizzes[0]!.id,
+                      proptype,
+                    });
+                  }}
+                  disabled={!geo || selectedVizzes.length === 0}
+                >
+                  {intl.formatMessage({
+                    defaultMessage: "Generate AI caption",
+                    description: "Button label used to generate and insert an AI-written caption for the selected metric",
+                  })}
+                </Button>
 
-              <Button
-                variant="secondary"
-                stretch
-                onClick={() => {
-                  setPostInsertMode(false);
-                  setLastInsertCount(0);
-                  setStep(0);
-                }}
-              >
-                {intl.formatMessage({
-                  defaultMessage: "Start over",
-                  description: "Button label that returns the user to the beginning of the setup flow after insertion",
-                })}
-              </Button>
-
+                <Button
+                  variant="secondary"
+                  stretch
+                  onClick={() => {
+                    setPostInsertMode(false);
+                    setLastInsertCount(0);
+                    setStep(0);
+                  }}
+                >
+                  {intl.formatMessage({
+                    defaultMessage: "Start over",
+                    description: "Button label that returns the user to the beginning of the setup flow after insertion",
+                  })}
+                </Button>
+              </Rows>
             </div>
           )}
+          {!postInsertMode && (
           <div style={{ marginBottom: 12 }}>
             <div>
               <div style={{ marginBottom: 8 }}>
-                <Text size="small" variant="bold" tagName="div">
+                <Text variant="bold" tagName="div">
                   <FormattedMessage
                     defaultMessage="Choose widget"
                     description="Heading above the widget selection cards in step three"
                   />
                 </Text>
               </div>
-              <div style={{ display: "grid", gap: 10 }}>
+              <Rows spacing="1u">
                 {WIDGETS.map((w) => {
                   const active = widget === w.id;
                   return (
-                    <button
+                    <HorizontalCard
                       key={w.id}
-                      onClick={() => setWidget(w.id as any)}
-                      style={{
-                        textAlign: "left",
-                        padding: 10,
-                        borderRadius: 12,
-                        border: active ? `1px solid ${tokens.colorActionSelectedBorder}` : `1px solid ${tokens.colorActionSecondaryBorder}`,
-                        background: active ? tokens.colorActionSelectedBg : tokens.elevationSurfaceBg,
-                        cursor: "pointer",
-                        display: "grid",
-                        gridTemplateColumns: "64px 1fr",
-                        gap: 10,
-                        alignItems: "center",
+                      title={w.label}
+                      description={w.desc}
+                      ariaLabel={w.label}
+                      thumbnail={{
+                        url: svgDataUrl(PREVIEW_SVG_BY_WIDGET[w.id] ?? PREVIEW_SVG_BY_WIDGET.chart!),
+                        alt: w.label,
                       }}
-                    >
-                      {/* Widget preview SVG */}
-                      <div
-                        style={{
-                          width: 64,
-                          height: 44,
-                          borderRadius: 10,
-                          background: tokens.colorUiNeutralBg,
-                          border: `1px solid ${tokens.colorActionSecondaryBorder}`,
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          overflow: "hidden",
-                        }}
-                        aria-hidden="true"
-                      >
-                        {PREVIEW_BY_WIDGET[w.id] ?? (
-                          <svg width="56" height="36" viewBox="0 0 56 36" xmlns="http://www.w3.org/2000/svg">
-                            <rect x="1" y="1" width="54" height="34" rx="6" fill="#f7f7f7" stroke="#d9d9d9" />
-                            <text x="28" y="21" textAnchor="middle" fontSize="9" fill="#9a9a9a" fontFamily="Inter, system-ui, sans-serif">
-                            {PREVIEW_LABELS[w.preview] ?? w.preview}
-                            </text>
-                          </svg>
-                        )}
-                      </div>
-
-                      <div style={{ display: "grid", gap: 2 }}>
-                        <Text size="small" variant="bold" tagName="div">{w.label}</Text>
-                        <Text size="small" tone="secondary" tagName="div">{w.desc}</Text>
-                      </div>
-                    </button>
+                      onClick={() => setWidget(w.id as any)}
+                      bottomEnd={
+                        active ? (
+                          <Badge
+                            tone="assist"
+                            text={intl.formatMessage({
+                              defaultMessage: "Selected",
+                              description: "Badge shown on the currently selected widget card",
+                            })}
+                          />
+                        ) : undefined
+                      }
+                      bottomEndVisibility={active ? "always" : "on-hover"}
+                    />
                   );
                 })}
-              </div>
+              </Rows>
             </div>
             {/* Size — hidden entirely when the widget only offers one preset */}
             {presetSet.length > 1 && (
@@ -1664,16 +1328,15 @@ export function App() {
                 />
               </div>
             )}
-            <details style={{ marginTop: 10 }}>
-              <summary style={{ cursor: "pointer", userSelect: "none" }}>
-                <Text variant="bold" tagName="span">
-                  <FormattedMessage
-                    defaultMessage="Options"
-                    description="Summary label for the collapsible widget options panel"
-                  />
-                </Text>
-              </summary>
-              <div style={{ marginTop: 10, display: "grid", gap: 8 }}>
+            <div style={{ marginTop: 10 }}>
+            <Accordion>
+              <AccordionItem
+                title={intl.formatMessage({
+                  defaultMessage: "Options",
+                  description: "Title of the collapsible widget options panel",
+                })}
+              >
+              <div style={{ display: "grid", gap: 8 }}>
                 {(widget === "chart" || widget === "strip") && (
                   <Checkbox
                     checked={showTitle}
@@ -1750,8 +1413,11 @@ export function App() {
                   })}
                 />
               </div>
-            </details>
+              </AccordionItem>
+            </Accordion>
+            </div>
           </div>
+          )}
         </Section>
       )}
 
@@ -1847,98 +1513,126 @@ export function App() {
           </Text>
         </div>
       )}
+          </TabPanel>
+
+          <TabPanel id="saved">
+            {allTemplatesSorted.length === 0 ? (
+              // Empty state — centered within the app panel
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  minHeight: 280,
+                  padding: 16,
+                }}
+              >
+                <Text tone="secondary" alignment="center" tagName="div">
+                  <FormattedMessage
+                    defaultMessage="No saved sets yet. After you add charts to a design, save the set to reuse it here."
+                    description="Empty-state message shown on the Saved tab when the user has no saved sets"
+                  />
+                </Text>
+              </div>
+            ) : (
+              <div style={{ marginTop: 12 }}>
+                <Rows spacing="2u">
+                  <FormField
+                    label={intl.formatMessage({
+                      defaultMessage: "Saved sets",
+                      description: "Label for the dropdown listing the user's saved sets",
+                    })}
+                    description={intl.formatMessage({
+                      defaultMessage: "Saved sets are stored on this device.",
+                      description: "Helper text explaining that saved sets are stored locally on the current device",
+                    })}
+                    control={(props) => (
+                      <Select
+                        {...props}
+                        stretch
+                        placeholder={intl.formatMessage({
+                          defaultMessage: "Choose a saved set",
+                          description: "Placeholder in the saved sets dropdown before a saved set is selected",
+                        })}
+                        value={activeTemplateId || undefined}
+                        options={allTemplatesSorted.map((t) => ({
+                          value: t.id,
+                          label: t.name,
+                          description: t.geoLabel || undefined,
+                        }))}
+                        onChange={(id) => {
+                          setActiveTemplateId(id as string);
+                          setConfirmDeleteArmed(false);
+                        }}
+                      />
+                    )}
+                  />
+                  <Button
+                    variant="primary"
+                    stretch
+                    disabled={!activeTemplate}
+                    onClick={() => {
+                      if (activeTemplate) loadTemplate(activeTemplate);
+                    }}
+                  >
+                    {intl.formatMessage({
+                      defaultMessage: "Load set",
+                      description: "Button label to load the currently selected saved set",
+                    })}
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    stretch
+                    disabled={!activeTemplate}
+                    onClick={() => {
+                      if (!activeTemplate) return;
+                      if (!confirmDeleteArmed) {
+                        armDeleteOnce();
+                        return;
+                      }
+                      deleteActiveTemplate();
+                      setConfirmDeleteArmed(false);
+                    }}
+                  >
+                    {confirmDeleteArmed
+                      ? intl.formatMessage({
+                          defaultMessage: "Click again to delete",
+                          description: "Delete confirmation button text shown after the first click on delete saved set",
+                        })
+                      : intl.formatMessage({
+                          defaultMessage: "Delete saved set",
+                          description: "Button label to delete the currently selected saved set",
+                        })}
+                  </Button>
+                </Rows>
+              </div>
+            )}
+          </TabPanel>
+        </TabPanels>
+      </Tabs>
     </div>
   );
 }
 
 /* ---------- UI bits ---------- */
-function Header({ step, steps }: { step: Step; steps: readonly string[] }) {
-  return (
-    <div style={{ display: "grid", gap: 6 }}>
-      <div style={{ display: "flex", gap: 4 }}>
-        {steps.map((_, i) => (
-          <div
-            key={i}
-            style={{
-              height: 4,
-              flex: 1,
-              borderRadius: 2,
-              background: i <= step ? tokens.colorActionPrimaryBg : tokens.colorUiNeutralBg,
-            }}
-          />
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function Section(props: { title: React.ReactNode; children: React.ReactNode }) {
+function Section(props: {
+  badge?: string;
+  badgeLabel?: string;
+  title: React.ReactNode;
+  children: React.ReactNode;
+}) {
   return (
     <div>
-      <div style={{ marginBottom: 12, marginTop: 12 }}>
-        <Text size="small" variant="bold" tagName="div">{props.title}</Text>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12, marginTop: 12 }}>
+        {props.badge && (
+          <Badge tone="assist" shape="circle" text={props.badge} ariaLabel={props.badgeLabel} />
+        )}
+        <Text variant="bold" tagName="div">{props.title}</Text>
       </div>
       {props.children}
     </div>
   );
 }
-
-
-function List({ children }: { children: React.ReactNode }) {
-  return (
-    <div style={list}>
-      <div style={{ maxHeight: 200, overflow: "auto" }}>{children}</div>
-    </div>
-  );
-}
-
-function Row({
-  active,
-  recommended,
-  title,
-  subtitle,
-  onClick,
-}: {
-  active?: boolean;
-  recommended?: boolean;
-  title?: string;
-  subtitle?: string;
-  onClick: () => void;
-}) {
-  return (
-    <div
-      onClick={onClick}
-      style={{
-        padding: 9,
-        cursor: "pointer",
-        background: active ? tokens.colorActionSelectedBg : tokens.elevationSurfaceBg,
-        borderBottom: `1px solid ${tokens.colorUiNeutralBg}`,
-        borderLeft: recommended ? `3px solid ${tokens.colorActionSelectedBorder}` : "3px solid transparent",
-      }}
-    >
-    <Text size="small" variant="bold" tagName="div">{title}</Text>
-
-    {(subtitle || recommended) && (
-      <div style={{ display: "flex", gap: 8, alignItems: "baseline" }}>
-        {subtitle && (
-          <div style={{ flex: 1 }}>
-            <Text size="small" tone="secondary" tagName="div">{subtitle}</Text>
-          </div>
-        )}
-        {recommended && (
-          <Text size="xsmall" tone="secondary" tagName="div">
-            <FormattedMessage
-              defaultMessage="Recommended"
-              description="Label shown next to recommended items in the list"
-            />
-          </Text>
-        )}
-      </div>
-    )}
-    </div>
-  );
-}
-
 
 /* ---------- Styles ---------- */
 // The Canva sandbox already provides left padding; apply our own to the
@@ -1946,22 +1640,6 @@ function Row({
 const shell: React.CSSProperties = {
   padding: "16px 16px 16px 0",
 };
-
-
-const list: React.CSSProperties = {
-  border: `1px solid ${tokens.colorUiNeutralBg}`,
-  borderRadius: 6,
-};
-
-function Empty({ children }: { children: React.ReactNode }) {
-  return (
-    <div style={{ padding: 12 }}>
-      <Text size="small" tone="tertiary" alignment="center" tagName="div">
-        {children}
-      </Text>
-    </div>
-  );
-}
 
 async function fetchPngAsDataUrl(url: string): Promise<string> {
   const token = await auth.getCanvaUserToken().catch(() => "");
