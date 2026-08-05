@@ -718,6 +718,13 @@ export function App() {
     return Math.max(1, Math.round(baseH * mult));
   }
 
+  function adjustedWidth(baseW: number): number {
+    // Large font (120%) needs ~20% more width or nowrap labels like
+    // "Month-over-month" get ellipsized out of the card.
+    if (widget !== "kpi" && widget !== "strip") return baseW;
+    return fontSize === "large" ? Math.round(baseW * 1.2) : baseW;
+  }
+
 
 
   async function insert() {
@@ -837,7 +844,7 @@ export function App() {
         meta.searchParams.set("viz_id", String(v!.id));
         meta.searchParams.set("geo_id", String(geo.id));
         meta.searchParams.set("proptype", "all");
-        meta.searchParams.set("w", String(activePreset!.w));
+        meta.searchParams.set("w", String(adjustedWidth(activePreset!.w)));
         meta.searchParams.set("h", String(adjustedHeight(activePreset!.h)));
         meta.searchParams.set("bg", bg);
         meta.searchParams.set("fontsize", fontSize);
@@ -875,7 +882,7 @@ export function App() {
           // simple stacking offset so items don't land exactly on top of each other
           top: i * 20,
           left: i * 20,
-          width: activePreset!.w,
+          width: adjustedWidth(activePreset!.w),
           height: adjustedHeight(activePreset!.h),
         } as any);
         bump(chartPct(i * 3 + 3));
