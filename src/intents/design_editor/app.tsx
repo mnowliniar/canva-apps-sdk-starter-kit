@@ -897,15 +897,17 @@ export function App() {
           }));
   return (
     <div style={shell}>
-      <Tabs activeId={mainTab} onSelect={(id) => setMainTab(id as "create" | "saved")}>
+      {/* Fully controlled tabs: each Tab/TabPanel gets active/onClick — in this
+          UI Kit version a Tabs-level activeId alone swallows clicks silently. */}
+      <Tabs>
         <TabList align="stretch">
-          <Tab id="create">
+          <Tab id="create" active={mainTab === "create"} onClick={() => setMainTab("create")}>
             {intl.formatMessage({
               defaultMessage: "Create",
               description: "Tab label for the main flow where the user builds and adds charts",
             })}
           </Tab>
-          <Tab id="saved">
+          <Tab id="saved" active={mainTab === "saved"} onClick={() => setMainTab("saved")}>
             {intl.formatMessage({
               defaultMessage: "Saved",
               description: "Tab label for the list of saved sets",
@@ -913,7 +915,7 @@ export function App() {
           </Tab>
         </TabList>
         <TabPanels>
-          <TabPanel id="create">
+          <TabPanel id="create" active={mainTab === "create"}>
       {(geo || selectedVizzes.length > 0) && (
         <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginBottom: 4 }}>
           {geo && (
@@ -1277,29 +1279,26 @@ export function App() {
                 {WIDGETS.map((w) => {
                   const active = widget === w.id;
                   return (
-                    <HorizontalCard
+                    // Selection ring: HorizontalCard has no selected prop, so draw the
+                    // purple border highlight (per design review) around the active card.
+                    <div
                       key={w.id}
-                      title={w.label}
-                      description={w.desc}
-                      ariaLabel={w.label}
-                      thumbnail={{
-                        url: svgDataUrl(PREVIEW_SVG_BY_WIDGET[w.id] ?? PREVIEW_SVG_BY_WIDGET.chart!),
-                        alt: w.label,
+                      style={{
+                        borderRadius: 8,
+                        boxShadow: active ? `0 0 0 2px ${tokens.colorActionSelectedBorder}` : "none",
                       }}
-                      onClick={() => setWidget(w.id as any)}
-                      bottomEnd={
-                        active ? (
-                          <Badge
-                            tone="assist"
-                            text={intl.formatMessage({
-                              defaultMessage: "Selected",
-                              description: "Badge shown on the currently selected widget card",
-                            })}
-                          />
-                        ) : undefined
-                      }
-                      bottomEndVisibility={active ? "always" : "on-hover"}
-                    />
+                    >
+                      <HorizontalCard
+                        title={w.label}
+                        description={w.desc}
+                        ariaLabel={w.label}
+                        thumbnail={{
+                          url: svgDataUrl(PREVIEW_SVG_BY_WIDGET[w.id] ?? PREVIEW_SVG_BY_WIDGET.chart!),
+                          alt: w.label,
+                        }}
+                        onClick={() => setWidget(w.id as any)}
+                      />
+                    </div>
                   );
                 })}
               </Rows>
@@ -1470,8 +1469,8 @@ export function App() {
         )}
       </div>
       {step === 0 && (
-        <div style={{ marginTop: 10, textAlign: "center" }}>
-          <Text size="small" tone="secondary" tagName="div">
+        <div style={{ marginTop: 10 }}>
+          <Text size="small" tone="secondary" alignment="center" tagName="div">
             <FormattedMessage
               defaultMessage="New here? <link>Getting started</link>"
               description="Footer help text; only the short 'Getting started' phrase is a link to the guide"
@@ -1495,7 +1494,7 @@ export function App() {
       )}
           </TabPanel>
 
-          <TabPanel id="saved">
+          <TabPanel id="saved" active={mainTab === "saved"}>
             {allTemplatesSorted.length === 0 ? (
               // Empty state — centered within the app panel
               <div
