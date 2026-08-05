@@ -131,9 +131,24 @@ export function App() {
   // English value + id; we display the Canva-translated string keyed by id, and fall back
   // to the raw value when an id isn't in the generated catalog yet (e.g. a metric was added
   // but the app hasn't been regenerated/resubmitted). See generated/dynamic-messages.ts.
+  // Catalog/DB labels arrive in Title Case ("Closed Sales", "ZIP Code"); Canva
+  // requires sentence case in UI labels. Transform at display time, English only
+  // (other locales follow their own casing rules), keeping acronyms and any
+  // word containing digits untouched.
+  const sentenceCaseEn = (s: string): string => {
+    if (!intl.locale.toLowerCase().startsWith("en")) return s;
+    let first = true;
+    return s.replace(/\S+/g, (word) => {
+      const keep = /^[A-Z0-9]{2,}$/.test(word) || /\d/.test(word);
+      const out = first || keep ? word : word.toLowerCase();
+      first = false;
+      return out;
+    });
+  };
+
   const tGeoType = (value: string): string => {
     const m = GEO_TYPE_MESSAGES[value];
-    return m ? intl.formatMessage(m) : value;
+    return sentenceCaseEn(m ? intl.formatMessage(m) : value);
   };
   const tTimespanLabel = (t: Item): string => {
     const m = TIMESPAN_MESSAGES[String(t.id)];
@@ -141,7 +156,7 @@ export function App() {
   };
   const tVizTitle = (v: Item): string => {
     const m = VIZ_MESSAGES[String(v.id)];
-    return m ? intl.formatMessage(m.title) : (v.title || v.name || "");
+    return sentenceCaseEn(m ? intl.formatMessage(m.title) : (v.title || v.name || ""));
   };
   const tVizSubtitle = (v: Item): string => {
     const m = VIZ_MESSAGES[String(v.id)];
@@ -1442,32 +1457,37 @@ export function App() {
         </div>
       )}
 
-      {/* Nav */}
-      <div style={{ height: 12 }} />
-      <div style={{ display: "grid", gap: 8 }}>
-        <Button
-          variant="primary"
-          stretch
-          onClick={step < 2 ? next : insert}
-          disabled={buttonDisabled}
-          loading={isInserting}
-        >
-          {buttonLabel}
-        </Button>
-        {step > 0 && (
-          <Button
-            variant="secondary"
-            stretch
-            onClick={back}
-            disabled={isInserting}
-          >
-            {intl.formatMessage({
-              defaultMessage: "Go back",
-              description: "Secondary navigation button label used to go to the previous step",
-            })}
-          </Button>
-        )}
-      </div>
+      {/* Nav — hidden while the post-insert panel is up so the post-generate
+          view stays focused; dismissing the success alert restores it */}
+      {!(step === 2 && postInsertMode) && (
+        <>
+          <div style={{ height: 12 }} />
+          <div style={{ display: "grid", gap: 8 }}>
+            <Button
+              variant="primary"
+              stretch
+              onClick={step < 2 ? next : insert}
+              disabled={buttonDisabled}
+              loading={isInserting}
+            >
+              {buttonLabel}
+            </Button>
+            {step > 0 && (
+              <Button
+                variant="secondary"
+                stretch
+                onClick={back}
+                disabled={isInserting}
+              >
+                {intl.formatMessage({
+                  defaultMessage: "Go back",
+                  description: "Secondary navigation button label used to go to the previous step",
+                })}
+              </Button>
+            )}
+          </div>
+        </>
+      )}
       {step === 0 && (
         <div style={{ marginTop: 10 }}>
           <Text size="small" tone="secondary" alignment="center" tagName="div">
