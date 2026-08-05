@@ -252,7 +252,7 @@ export function App() {
     {
       id: "kpi-tall",
       label: intl.formatMessage({
-        defaultMessage: "Tall Card",
+        defaultMessage: "Tall card",
         description: "Preset size label for a tall KPI card widget",
       }),
       w: 200,
@@ -261,7 +261,7 @@ export function App() {
     {
       id: "kpi-wide",
       label: intl.formatMessage({
-        defaultMessage: "Wide Card",
+        defaultMessage: "Wide card",
         description: "Preset size label for a wide KPI card widget",
       }),
       w: 550,
@@ -273,7 +273,7 @@ export function App() {
     {
       id: "strip-reg",
       label: intl.formatMessage({
-        defaultMessage: "Regular Card",
+        defaultMessage: "Regular card",
         description: "Preset size label for a regular three-stat strip card widget",
       }),
       w: 650,
@@ -282,7 +282,7 @@ export function App() {
     {
       id: "strip-wide",
       label: intl.formatMessage({
-        defaultMessage: "Wide Card",
+        defaultMessage: "Wide card",
         description: "Preset size label for a wide three-stat strip card widget",
       }),
       w: 850,
@@ -306,7 +306,7 @@ export function App() {
     {
       id: "text-wide",
       label: intl.formatMessage({
-        defaultMessage: "Text Box",
+        defaultMessage: "Text box",
         description: "Preset size label for a text summary widget",
       }),
       w: 550,
@@ -1000,8 +1000,8 @@ export function App() {
             { progress: Math.round(progress) },
           )
         : intl.formatMessage({
-            defaultMessage: "Insert",
-            description: "Primary button label used to insert the selected charts into Canva",
+            defaultMessage: "Add to design",
+            description: "Primary button label used to add the selected charts to the Canva design",
           }));
   return (
     <div style={shell}>
@@ -1707,9 +1707,9 @@ export function App() {
                     options={[
                       { value: "white", label: intl.formatMessage({ defaultMessage: "White", description: "Background color option for a white widget background" }) },
                       { value: "transparent", label: intl.formatMessage({ defaultMessage: "Transparent", description: "Background color option for a transparent widget background" }) },
-                      { value: "#faf8f5", label: intl.formatMessage({ defaultMessage: "Warm White", description: "Background color option for a warm white widget background" }) },
-                      { value: "#f3f4f6", label: intl.formatMessage({ defaultMessage: "Light Gray", description: "Background color option for a light gray widget background" }) },
-                      { value: "#f0fbfb", label: intl.formatMessage({ defaultMessage: "Soft IAR Teal", description: "Background color option for a soft IAR teal widget background" }) },
+                      { value: "#faf8f5", label: intl.formatMessage({ defaultMessage: "Warm white", description: "Background color option for a warm white widget background" }) },
+                      { value: "#f3f4f6", label: intl.formatMessage({ defaultMessage: "Light gray", description: "Background color option for a light gray widget background" }) },
+                      { value: "#f0fbfb", label: intl.formatMessage({ defaultMessage: "Soft IAR teal", description: "Background color option for a soft IAR teal widget background" }) },
                     ]}
                     onChange={(value) => setBg(value as string)}
                   />
@@ -1808,7 +1808,7 @@ export function App() {
             disabled={isInserting}
           >
             {intl.formatMessage({
-              defaultMessage: "Back",
+              defaultMessage: "Go back",
               description: "Secondary navigation button label used to go to the previous step",
             })}
           </Button>
@@ -1816,19 +1816,26 @@ export function App() {
       </div>
       {step === 0 && (
         <div style={{ marginTop: 10, textAlign: "center" }}>
-          <Link
-            href="https://data.indianarealtors.com/canva/learn"
-            requestOpenExternalUrl={() => {
-              requestOpenExternalUrl({
-                url: "https://data.indianarealtors.com/canva/learn",
-              }).catch(console.error);
-            }}
-          >
+          <Text size="small" tone="secondary" tagName="div">
             <FormattedMessage
-              defaultMessage="New here? Getting started"
-              description="Footer help link inviting first-time users to open the getting started guide"
+              defaultMessage="New here? <link>Getting started</link>"
+              description="Footer help text; only the short 'Getting started' phrase is a link to the guide"
+              values={{
+                link: (chunks) => (
+                  <Link
+                    href="https://data.indianarealtors.com/canva/learn"
+                    requestOpenExternalUrl={() => {
+                      requestOpenExternalUrl({
+                        url: "https://data.indianarealtors.com/canva/learn",
+                      }).catch(console.error);
+                    }}
+                  >
+                    {chunks}
+                  </Link>
+                ),
+              }}
             />
-          </Link>
+          </Text>
         </div>
       )}
     </div>
@@ -1925,8 +1932,10 @@ function Row({
 
 
 /* ---------- Styles ---------- */
+// The Canva sandbox already provides left padding; apply our own to the
+// remaining sides only (16px top/right/bottom per design review).
 const shell: React.CSSProperties = {
-  padding: 12,
+  padding: "16px 16px 16px 0",
 };
 
 
