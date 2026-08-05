@@ -4,7 +4,7 @@ import { upload } from "@canva/asset";
 import { addElementAtPoint, createRichtextRange } from "@canva/design";
 import { requestOpenExternalUrl } from "@canva/platform";
 import { auth } from "@canva/user";
-import { Accordion, AccordionItem, Alert, Badge, Button, Checkbox, ColorSelector, FormField, HorizontalCard, Link, ProgressBar, Rows, SegmentedControl, Select, Tab, TabList, TabPanel, TabPanels, Tabs, Text, TextInput, Title, tokens } from "@canva/app-ui-kit";
+import { Accordion, AccordionItem, Alert, Badge, Button, Checkbox, ColorSelector, FormField, HorizontalCard, Link, ProgressBar, Rows, SegmentedControl, Select, Tab, TabList, TabPanel, TabPanels, Tabs, Text, TextInput, tokens } from "@canva/app-ui-kit";
 import { GEO_TYPE_MESSAGES, TIMESPAN_MESSAGES, VIZ_MESSAGES } from "./generated/dynamic-messages";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -468,25 +468,14 @@ export function App() {
   const [lastInsertCount, setLastInsertCount] = useState<number>(0);
   const [postInsertMode, setPostInsertMode] = useState<boolean>(false);
 
-  // loader/progress
+  // loader/progress — determinate, driven by real insertion milestones
   const [isInserting, setIsInserting] = useState(false);
   const [progress, setProgress] = useState(0);
-  const progressRef = useRef<number | null>(null);
 
-  function startProgress() {
-    setProgress(8);
-    if (progressRef.current) return;
-    progressRef.current = window.setInterval(() => {
-      setProgress(p => Math.min(90, p + Math.max(0.4, (90 - p) * 0.03)));
-    }, 200);
-  }
   function bump(to: number) { setProgress(p => Math.max(p, to)); }
   function finishProgress() {
     setProgress(100);
     setTimeout(() => setIsInserting(false), 250);
-  }
-  function stopProgress() {
-    if (progressRef.current) { clearInterval(progressRef.current); progressRef.current = null; }
   }
 
   // boot
@@ -720,13 +709,14 @@ export function App() {
     setIsInserting(true);
     setPostInsertMode(false);
     setLastInsertCount(0);
-    startProgress();
+    setProgress(2);
 
     try {
       // Text widget: fetch metric-driven text and insert as "nuggets" (separate text elements)
       // so users can drag/drop individual facts without copy/paste.
       if (widget === "text") {
-        bump(12);
+        // Determinate progress: fetching payloads covers 0–50%, adding elements 50–100%.
+        const fetchTotal = Math.max(1, selectedVizzes.length);
 
         // Fetch text payloads for each selected metric
         const payloads: { title: string; subtitle: string; bullets: string[] }[] = [];
@@ -736,12 +726,15 @@ export function App() {
           u.searchParams.set("geo_id", String(geo.id));
           u.searchParams.set("proptype", "all");
 
-          // progress bump per metric
-          const i = selectedVizzes.indexOf(v);
-          bump(12 + Math.round((i / Math.max(1, selectedVizzes.length)) * 40));
           const td = await jWithCanva<{ title: string; subtitle: string; bullets: string[] }>(u.toString());
           if (td) payloads.push(td);
+          bump(Math.round((payloads.length / fetchTotal) * 50));
         }
+        const elementTotal = Math.max(
+          1,
+          payloads.reduce((sum, td) => sum + 1 + (td?.bullets?.length ?? 0), 0),
+        );
+        let elementsAdded = 0;
 
         // Layout: stack items vertically with small spacing.
         // Canva will let users drag/drop these into their own templates.
@@ -771,7 +764,6 @@ export function App() {
             headerRange.appendText(td.subtitle, { fontWeight: "normal" } as any);
           }
 
-          bump(20);
           await addElementAtPoint({
             type: "richtext",
             range: headerRange,
@@ -780,6 +772,8 @@ export function App() {
             width,
             height: headerHeight,
           } as any);
+          elementsAdded += 1;
+          bump(50 + Math.round((elementsAdded / elementTotal) * 50));
 
           top += headerHeight + gap;
 
@@ -789,7 +783,6 @@ export function App() {
               const nuggetRange = createRichtextRange();
               nuggetRange.appendText(b, { fontWeight: "normal" } as any);
 
-              bump(20);
               await addElementAtPoint({
                 type: "richtext",
                 range: nuggetRange,
@@ -798,6 +791,8 @@ export function App() {
                 width,
                 height: nuggetHeight,
               } as any);
+              elementsAdded += 1;
+              bump(50 + Math.round((elementsAdded / elementTotal) * 50));
 
               top += nuggetHeight + gap;
             }
@@ -814,6 +809,10 @@ export function App() {
       }
 
       // Bundle insert: for each selected metric, fetch a PNG and insert it as an image element.
+      // Determinate progress: each chart has 3 real milestones (metadata, PNG, added to design).
+      const milestoneTotal = selectedVizzes.length * 3;
+      const chartPct = (milestonesDone: number) =>
+        Math.round((milestonesDone / milestoneTotal) * 100);
       for (let i = 0; i < selectedVizzes.length; i++) {
         const v = selectedVizzes[i];
 
@@ -831,15 +830,13 @@ export function App() {
         const hex = normalizeHex(color);
         if (hex) meta.searchParams.set("color", hex);
 
-        // progress bump per metric
-        bump(12 + Math.round((i / Math.max(1, selectedVizzes.length)) * 35));
         const jd = await jWithCanva<{ png_url: string }>(meta.toString());
         if (!jd?.png_url) throw new Error("chart_data missing png_url");
+        bump(chartPct(i * 3 + 1));
 
-        bump(15 + Math.round((i / Math.max(1, selectedVizzes.length)) * 40));
         const dataUrl = await fetchPngAsDataUrl(jd.png_url);
+        bump(chartPct(i * 3 + 2));
 
-        bump(80);
         const asset = await upload({
           type: "image",
           mimeType: "image/png",
@@ -848,7 +845,6 @@ export function App() {
           aiDisclosure: "none",
         });
 
-        bump(90);
         await addElementAtPoint({
           type: "image",
           ref: asset.ref,
@@ -865,6 +861,7 @@ export function App() {
           width: activePreset!.w,
           height: adjustedHeight(activePreset!.h),
         } as any);
+        bump(chartPct(i * 3 + 3));
       }
       setLastInsertCount(selectedVizzes.length);
       setPostInsertMode(true);
@@ -875,8 +872,6 @@ export function App() {
       setLastInsertCount(0);
       setProgress(100);
       setTimeout(() => setIsInserting(false), 600);
-    } finally {
-      stopProgress();
     }
   }
   const isLastStep = step === 2;
@@ -891,8 +886,8 @@ export function App() {
     : (isInserting
         ? intl.formatMessage(
             {
-              defaultMessage: "Inserting… {progress}%",
-              description: "Primary button label shown while charts are being inserted into Canva",
+              defaultMessage: "Adding… {progress}%",
+              description: "Primary button label shown while charts are being added to the design",
             },
             { progress: Math.round(progress) },
           )
@@ -1421,45 +1416,30 @@ export function App() {
         </Section>
       )}
 
-      {/* Loader overlay */}
+      {/* Loading — determinate progress bar shown inline while charts are added */}
       {isInserting && (
-        <div
-          role="status"
-          aria-live="polite"
-          style={{
-            position: "fixed", inset: 0, background: tokens.colorFeedbackOverlayBg,
-            display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999
-          }}
-        >
-          <div style={{
-            width: 320, padding: 16, borderRadius: 12,
-            background: tokens.elevationSurfaceFloatingBg,
-            boxShadow: tokens.elevationSurfaceFloatingShadow,
-          }}>
-            <div style={{ marginBottom: 8 }}>
-              <Title size="small">
-                <FormattedMessage
-                  defaultMessage="Inserting…"
-                  description="Heading shown in the loader overlay while charts are being inserted"
-                />
-              </Title>
-            </div>
-            <div style={{ marginBottom: 8 }}>
-              <ProgressBar
-                value={Math.round(progress)}
-                ariaLabel={intl.formatMessage({
-                  defaultMessage: "Insertion progress",
-                  description: "Accessible label for the progress bar shown while charts are being inserted",
-                })}
-              />
-            </div>
-            <Text size="small" tone="secondary" tagName="div">
+        <div role="status" aria-live="polite" style={{ marginTop: 12 }}>
+          <Rows spacing="1u">
+            <Text variant="bold" tagName="div">
               <FormattedMessage
-                defaultMessage="This can take up to ~30s depending on data & network."
-                description="Helper text in the loader overlay explaining that insertion may take some time"
+                defaultMessage="Adding to your design…"
+                description="Heading shown above the progress bar while charts are being added"
               />
             </Text>
-          </div>
+            <ProgressBar
+              value={Math.round(progress)}
+              ariaLabel={intl.formatMessage({
+                defaultMessage: "Progress adding charts to the design",
+                description: "Accessible label for the progress bar shown while charts are being added",
+              })}
+            />
+            <Text size="small" tone="secondary" tagName="div">
+              <FormattedMessage
+                defaultMessage="This can take up to 30 seconds depending on data and network."
+                description="Helper text explaining that adding charts may take some time"
+              />
+            </Text>
+          </Rows>
         </div>
       )}
 
