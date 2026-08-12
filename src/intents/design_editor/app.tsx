@@ -634,6 +634,10 @@ export function App() {
     setActiveTemplateId(t.id);
     setTemplateName("");
     setPostInsertMode(false);
+    setLastInsertCount(0);
+    // Land on the Saved tab with the new set selected — seeing it in the
+    // list is the confirmation that the save worked.
+    setMainTab("saved");
   }
 
 
