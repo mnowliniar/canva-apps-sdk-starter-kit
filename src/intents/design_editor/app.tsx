@@ -416,6 +416,11 @@ export function App() {
   };
   const svgDataUrl = (svg: string) => `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
 
+  // Long translations can push dropdown flyouts past the panel margins;
+  // cap option descriptions so the flyout keeps a consistent width.
+  const truncate = (s: string, n = 48) =>
+    s.length > n ? `${s.slice(0, n - 1).trimEnd()}…` : s;
+
 
   const PRESET_MAP = {
     kpi: KPI_PRESETS,
@@ -484,6 +489,7 @@ export function App() {
   // post-insert UX
   const [lastInsertCount, setLastInsertCount] = useState<number>(0);
   const [postInsertMode, setPostInsertMode] = useState<boolean>(false);
+  const [isCaptioning, setIsCaptioning] = useState<boolean>(false);
 
   // loader/progress — determinate, driven by real insertion milestones
   const [isInserting, setIsInserting] = useState(false);
@@ -940,14 +946,60 @@ export function App() {
         </TabList>
         <TabPanels>
           <TabPanel id="create" active={mainTab === "create"}>
-      {(geo || selectedVizzes.length > 0) && (
+      {/* Full-view loading: while adding, replace the whole panel so
+          customization controls can't be interacted with mid-operation */}
+      {isInserting ? (
+        <div
+          role="status"
+          aria-live="polite"
+          style={{
+            minHeight: 420,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 16,
+          }}
+        >
+          <div style={{ width: "100%" }}>
+            <Rows spacing="1u">
+              <Text variant="bold" alignment="center" tagName="div">
+                <FormattedMessage
+                  defaultMessage="Adding to your design…"
+                  description="Heading shown above the progress bar while charts are being added"
+                />
+              </Text>
+              <ProgressBar
+                value={Math.round(progress)}
+                ariaLabel={intl.formatMessage({
+                  defaultMessage: "Progress adding charts to the design",
+                  description: "Accessible label for the progress bar shown while charts are being added",
+                })}
+              />
+              <Text size="small" tone="secondary" alignment="center" tagName="div">
+                <FormattedMessage
+                  defaultMessage="This can take up to 30 seconds depending on data and network."
+                  description="Helper text explaining that adding charts may take some time"
+                />
+              </Text>
+            </Rows>
+          </div>
+        </div>
+      ) : (
+      <>
+      {/* Breathing room under the tab bar */}
+      <div style={{ height: 12 }} />
+      {/* Market/metric summary — hidden on the post-insert screen per design review */}
+      {!postInsertMode && (geo || selectedVizzes.length > 0) && (
         <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginBottom: 4 }}>
           {geo && (
             <div style={{ display: "flex", gap: 4, alignItems: "baseline" }}>
               <Text size="small" tone="secondary" tagName="span">
                 <FormattedMessage defaultMessage="Market:" description="Inline summary label for the selected market" />
               </Text>
-              <Text size="small" variant="bold" tagName="span">{geo.name || geo.label}</Text>
+              <span title={geo.name || geo.label} style={chipValue}>
+                <Text size="small" variant="bold" tagName="span">{geo.name || geo.label}</Text>
+              </span>
             </div>
           )}
           {selectedVizzes.length > 0 && (
@@ -955,18 +1007,21 @@ export function App() {
               <Text size="small" tone="secondary" tagName="span">
                 <FormattedMessage defaultMessage="Metrics:" description="Inline summary label for the selected metrics" />
               </Text>
-              <Text size="small" variant="bold" tagName="span">
-                {(() => {
-                  const first = selectedVizzes[0] ? tVizTitle(selectedVizzes[0]) : "";
-                  const extra = selectedVizzes.length - 1;
-                  return extra > 0
-                    ? intl.formatMessage(
-                        { defaultMessage: "{first} +{extra}", description: "Summary showing the first selected metric name and a count of additional ones" },
-                        { first, extra }
-                      )
-                    : first;
-                })()}
-              </Text>
+              {(() => {
+                const first = selectedVizzes[0] ? tVizTitle(selectedVizzes[0]) : "";
+                const extra = selectedVizzes.length - 1;
+                const summary = extra > 0
+                  ? intl.formatMessage(
+                      { defaultMessage: "{first} +{extra}", description: "Summary showing the first selected metric name and a count of additional ones" },
+                      { first, extra }
+                    )
+                  : first;
+                return (
+                  <span title={summary} style={chipValue}>
+                    <Text size="small" variant="bold" tagName="span">{summary}</Text>
+                  </span>
+                );
+              })()}
             </div>
           )}
         </div>
@@ -1049,7 +1104,7 @@ export function App() {
                   options={geos.map((g) => ({
                     value: String(g.id),
                     label: g.name || g.label || String(g.id),
-                    description: tGeoSubtitle(g),
+                    description: truncate(tGeoSubtitle(g)),
                   }))}
                   onChange={(id) => {
                     const hit = geos.find((g) => String(g.id) === String(id)) || null;
@@ -1132,7 +1187,7 @@ export function App() {
                 const toOption = (v: Item) => ({
                   value: String(v.id),
                   label: tVizTitle(v),
-                  description: tVizSubtitle(v) || undefined,
+                  description: tVizSubtitle(v) ? truncate(tVizSubtitle(v)) : undefined,
                   disabled: !isSelectedViz(v.id) && selectedVizzes.length >= BUNDLE_MAX,
                 });
                 const recommended = sorted.filter(isRecommendedViz).map(toOption);
@@ -1185,21 +1240,9 @@ export function App() {
         </Section>
       )}
 
-      {/* Step 2: Options & insert */}
-      {step === 2 && (
-        <Section
-          badge="3"
-          badgeLabel={intl.formatMessage({
-            defaultMessage: "Step 3 of 3",
-            description: "Accessible label for the step three indicator badge",
-          })}
-          title={intl.formatMessage({
-            defaultMessage: "Options & insert",
-            description: "Section title for the third step where the user chooses widget options and inserts charts",
-          })}
-        >
-          {/* Post-insert: focused view — success alert + next actions only */}
-          {postInsertMode && (
+      {/* Post-insert success screen — its own focused view: no step badge,
+          no market/metric summary, save-set as the primary action */}
+      {step === 2 && postInsertMode && (
             <div style={{ marginBottom: 14 }}>
               <Rows spacing="2u">
                 <Alert
@@ -1240,28 +1283,36 @@ export function App() {
                     />
                   )}
                 />
+                {/* Button hierarchy per design review: saving the set is the
+                    main task here — primary; caption secondary; start over tertiary */}
                 <Button
-                  variant="secondary"
+                  variant="primary"
                   stretch
                   onClick={saveNewTemplate}
                   disabled={!geo || !timespan || selectedVizzes.length === 0}
                 >
                   {intl.formatMessage({
-                    defaultMessage: "Save",
-                    description: "Button label used to save the current bundle as a saved set",
+                    defaultMessage: "Save set",
+                    description: "Primary button label used to save the current bundle as a saved set",
                   })}
                 </Button>
 
                 <Button
                   variant="secondary"
                   stretch
-                  onClick={() => {
-                    if (!geo || selectedVizzes.length === 0) return;
-                    generateAndInsertCaption({
-                      geo_id: geo.id,
-                      viz_id: selectedVizzes[0]!.id,
-                      proptype,
-                    });
+                  loading={isCaptioning}
+                  onClick={async () => {
+                    if (!geo || selectedVizzes.length === 0 || isCaptioning) return;
+                    setIsCaptioning(true);
+                    try {
+                      await generateAndInsertCaption({
+                        geo_id: geo.id,
+                        viz_id: selectedVizzes[0]!.id,
+                        proptype,
+                      });
+                    } finally {
+                      setIsCaptioning(false);
+                    }
                   }}
                   disabled={!geo || selectedVizzes.length === 0}
                 >
@@ -1272,7 +1323,7 @@ export function App() {
                 </Button>
 
                 <Button
-                  variant="secondary"
+                  variant="tertiary"
                   stretch
                   onClick={() => {
                     setPostInsertMode(false);
@@ -1287,8 +1338,21 @@ export function App() {
                 </Button>
               </Rows>
             </div>
-          )}
-          {!postInsertMode && (
+      )}
+
+      {/* Step 2: Options & insert */}
+      {step === 2 && !postInsertMode && (
+        <Section
+          badge="3"
+          badgeLabel={intl.formatMessage({
+            defaultMessage: "Step 3 of 3",
+            description: "Accessible label for the step three indicator badge",
+          })}
+          title={intl.formatMessage({
+            defaultMessage: "Options & insert",
+            description: "Section title for the third step where the user chooses widget options and inserts charts",
+          })}
+        >
           <div style={{ marginBottom: 12 }}>
             <div>
               <div style={{ marginBottom: 8 }}>
@@ -1338,7 +1402,16 @@ export function App() {
                   control={({ id }: { id: string }) => (
                     <SegmentedControl
                       id={id}
-                      options={presetSet.map((p) => ({ value: p.id, label: p.label }))}
+                      options={presetSet.map((p) => ({
+                        value: p.id,
+                        // Truncate long translations inside the segment; full
+                        // text stays available via the hover tooltip.
+                        label: (
+                          <span title={p.label} style={segmentLabel}>
+                            {p.label}
+                          </span>
+                        ),
+                      }))}
                       value={presetId}
                       onChange={(value) => setPresetId(value)}
                     />
@@ -1435,35 +1508,7 @@ export function App() {
             </Accordion>
             </div>
           </div>
-          )}
         </Section>
-      )}
-
-      {/* Loading — determinate progress bar shown inline while charts are added */}
-      {isInserting && (
-        <div role="status" aria-live="polite" style={{ marginTop: 12 }}>
-          <Rows spacing="1u">
-            <Text variant="bold" tagName="div">
-              <FormattedMessage
-                defaultMessage="Adding to your design…"
-                description="Heading shown above the progress bar while charts are being added"
-              />
-            </Text>
-            <ProgressBar
-              value={Math.round(progress)}
-              ariaLabel={intl.formatMessage({
-                defaultMessage: "Progress adding charts to the design",
-                description: "Accessible label for the progress bar shown while charts are being added",
-              })}
-            />
-            <Text size="small" tone="secondary" tagName="div">
-              <FormattedMessage
-                defaultMessage="This can take up to 30 seconds depending on data and network."
-                description="Helper text explaining that adding charts may take some time"
-              />
-            </Text>
-          </Rows>
-        </div>
       )}
 
       {/* Nav — hidden while the post-insert panel is up so the post-generate
@@ -1521,26 +1566,40 @@ export function App() {
           </Text>
         </div>
       )}
+      </>
+      )}
           </TabPanel>
 
           <TabPanel id="saved" active={mainTab === "saved"}>
             {allTemplatesSorted.length === 0 ? (
-              // Empty state — centered within the app panel
+              // Empty state — centered vertically in the panel, with a CTA
+              // back to the Create flow
               <div
                 style={{
                   display: "flex",
+                  flexDirection: "column",
                   alignItems: "center",
                   justifyContent: "center",
-                  minHeight: 280,
+                  minHeight: 420,
                   padding: 16,
                 }}
               >
-                <Text tone="secondary" alignment="center" tagName="div">
-                  <FormattedMessage
-                    defaultMessage="No saved sets yet. After you add charts to a design, save the set to reuse it here."
-                    description="Empty-state message shown on the Saved tab when the user has no saved sets"
-                  />
-                </Text>
+                <div style={{ width: "100%" }}>
+                  <Rows spacing="2u">
+                    <Text tone="secondary" alignment="center" tagName="div">
+                      <FormattedMessage
+                        defaultMessage="No saved sets yet. Add charts to your design and save them as a set to reuse later."
+                        description="Empty-state message shown on the Saved tab when the user has no saved sets"
+                      />
+                    </Text>
+                    <Button variant="primary" stretch onClick={() => setMainTab("create")}>
+                      {intl.formatMessage({
+                        defaultMessage: "Create",
+                        description: "Empty-state button that returns the user to the Create tab",
+                      })}
+                    </Button>
+                  </Rows>
+                </div>
               </div>
             ) : (
               <div style={{ marginTop: 12 }}>
@@ -1647,6 +1706,24 @@ function Section(props: {
 // remaining sides only (16px top/right/bottom per design review).
 const shell: React.CSSProperties = {
   padding: "16px 16px 16px 0",
+};
+
+// Truncation for text that can grow under translation; the full string is
+// exposed via the title-attribute tooltip at each usage site.
+const chipValue: React.CSSProperties = {
+  display: "inline-block",
+  maxWidth: 150,
+  overflow: "hidden",
+  textOverflow: "ellipsis",
+  whiteSpace: "nowrap",
+  verticalAlign: "bottom",
+};
+
+const segmentLabel: React.CSSProperties = {
+  display: "block",
+  overflow: "hidden",
+  textOverflow: "ellipsis",
+  whiteSpace: "nowrap",
 };
 
 async function fetchPngAsDataUrl(url: string): Promise<string> {
